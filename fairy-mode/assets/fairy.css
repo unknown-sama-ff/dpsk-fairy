@@ -1,0 +1,253 @@
+html.fairy-on { background: #03070d; }
+html.fairy-on body { background: transparent !important; }
+html.fairy-on::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 85% at 50% 32%, rgba(30, 80, 160, 0.22), transparent 62%),
+    radial-gradient(90% 70% at 82% 78%, rgba(18, 150, 190, 0.10), transparent 60%),
+    url("/fairy/assets/wallpaper.svg") center / cover no-repeat,
+    #03070d;
+}
+html.fairy-on body { position: relative; z-index: 1; }
+html.fairy-on #root { position: relative; z-index: 1; }
+html.fairy-on #root::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 8900;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(to bottom, rgba(150, 215, 255, 0.022) 0 1px, transparent 1px 3px),
+    radial-gradient(130% 90% at 50% 30%, transparent 52%, rgba(0, 0, 0, 0.42) 100%);
+}
+html.fairy-on body {
+  --dsw-alias-label-tertiary: #69809a !important;
+  --dsw-alias-border-l4: rgba(126, 220, 255, 0.12) !important;
+  --dsw-alias-bg-base: rgba(3, 8, 15, 0.24) !important;
+  --dsw-alias-bg-layer-1: rgba(7, 17, 30, 0.48) !important;
+  --dsw-specific-sidebar-fill: rgba(4, 10, 19, 0.46) !important;
+  --dsw-font-family: "Bahnschrift", "Segoe UI", "Microsoft YaHei", system-ui, sans-serif !important;
+}
+
+/* ---------- emblem ---------- */
+.fairy-emblem { position: relative; display: block; flex: 0 0 auto; }
+.fairy-emblem.is-empty { border-radius: 50%; background: radial-gradient(circle, rgba(80, 130, 255, 0.25), transparent 70%); }
+.fairy-emblem.is-simple svg { width: 100%; height: 100%; display: block; }
+.fairy-emblem .fairy-bloom {
+  position: absolute; inset: -14%; border-radius: 50%; corner-shape: round;
+  background: radial-gradient(circle closest-side, rgba(150, 200, 255, 0.34) 0%, rgba(80, 150, 255, 0.22) 32%, rgba(56, 116, 255, 0.09) 55%, rgba(0, 0, 0, 0) 74%);
+  animation: fairy-breathe 3s ease-in-out infinite;
+  pointer-events: none;
+}
+.fairy-emblem .fairy-ring {
+  position: absolute; inset: -7%; border-radius: 50%; corner-shape: round;
+  border: 4px solid rgba(236, 246, 255, 0.55);
+  box-shadow: 0 0 16px rgba(198, 230, 255, 0.45), inset 0 0 14px rgba(198, 230, 255, 0.3);
+  filter: blur(3px); opacity: 0;
+  animation: fairy-ring 3.4s ease-out infinite;
+  pointer-events: none;
+}
+.fairy-emblem .fairy-mark { position: absolute; inset: 11%; transform-origin: 50% 50%; animation: fairy-breathe 3.4s ease-in-out infinite; }
+.fairy-emblem .fairy-band { position: absolute; inset: 0; animation: fairy-slice 3.6s steps(1, end) infinite; will-change: transform; }
+.fairy-emblem .fairy-band svg { width: 100%; height: 100%; display: block; }
+
+/* ---------- brand ---------- */
+.fairy-brand-mark { display: inline-flex; width: 22px; height: 22px; }
+.fairy-brand-text { font-family: "Bahnschrift", "Segoe UI", "Microsoft YaHei", sans-serif; font-weight: 600; letter-spacing: 0.14em; }
+.fairy-brand-text b { color: #7edcff; font-weight: 600; }
+
+/* ---------- conversation hero (新会话标题) ---------- */
+.fairy-hero { display: inline-flex; align-items: center; gap: 12px; }
+.fairy-hero-mark { display: inline-flex; }
+.fairy-hero-mark .fairy-emblem { filter: drop-shadow(0 0 12px rgba(126, 220, 255, 0.35)); }
+.fairy-hero-text { font: inherit; color: inherit; letter-spacing: 0.02em; white-space: nowrap; }
+/* The stock headline group (title + 预览版 badge) steps aside while the Fairy
+   occupant is mounted; class substrings survive CSS-module hashing. */
+html.fairy-hero-mounted [class*="titleGroup"] { display: none !important; }
+html.fairy-hero-mounted [class*="previewBadge"] { display: none !important; }
+
+/* ---------- dock ---------- */
+.fairy-shell { position: fixed; inset: 0; z-index: 9400; pointer-events: none; }
+.fairy-dock { position: absolute; left: 18px; bottom: 82px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; pointer-events: none; }
+.fairy-dock-btn {
+  pointer-events: auto; position: relative; display: grid; justify-items: center; gap: 2px;
+  width: 84px; padding: 0; border: 0; background: transparent; color: #9fd8ff; cursor: pointer;
+  font-family: "Bahnschrift", "Microsoft YaHei", sans-serif;
+}
+.fairy-dock-btn:hover .fairy-emblem { filter: brightness(1.18); }
+.fairy-dock-label { font-size: 9px; letter-spacing: 0.28em; color: rgba(159, 216, 255, 0.72); text-indent: 0.28em; }
+.fairy-dock-label b { color: #7edcff; }
+.fairy-dock-hint { font-size: 10px; color: rgba(159, 216, 255, 0.42); letter-spacing: 0.1em; opacity: 0; transition: opacity 0.2s; }
+.fairy-dock:hover .fairy-dock-hint { opacity: 1; }
+.fairy-bubble {
+  pointer-events: auto; width: 272px; padding: 13px 14px 12px; border-radius: 14px;
+  border: 1px solid rgba(126, 220, 255, 0.26);
+  background: linear-gradient(180deg, rgba(10, 23, 39, 0.95), rgba(5, 12, 22, 0.97));
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(180, 235, 255, 0.08);
+  backdrop-filter: blur(14px);
+  color: #dcebf8; font: 12.5px/1.7 "Microsoft YaHei", system-ui, sans-serif;
+  animation: fairy-in 0.22s ease-out;
+}
+.fairy-bubble-head { display: flex; align-items: center; gap: 7px; margin-bottom: 8px; }
+.fairy-dot { width: 6px; height: 6px; border-radius: 50%; background: #4fe3c1; box-shadow: 0 0 8px #4fe3c1; }
+.fairy-bubble-title { font: 600 11px/1 "Bahnschrift", "Microsoft YaHei"; letter-spacing: 0.22em; color: #bfe6ff; }
+.fairy-bubble-sub { margin-left: auto; font: 9px/1 "Bahnschrift", monospace; letter-spacing: 0.18em; color: rgba(126, 220, 255, 0.5); }
+.fairy-bubble-line { margin: 0; color: #e5f2ff; }
+.fairy-toast { margin: 6px 0 0; font-size: 11px; color: #f2d94e; }
+.fairy-tools { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 11px; }
+.fairy-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  height: 24px; padding: 0 9px; border-radius: 999px; corner-shape: round;
+  border: 1px solid rgba(126, 220, 255, 0.22);
+  background: rgba(126, 220, 255, 0.07); color: #a9cee8;
+  font: 11px/1 "Microsoft YaHei", sans-serif; cursor: pointer;
+}
+.fairy-chip:hover { border-color: rgba(126, 220, 255, 0.5); color: #e5f5ff; }
+.fairy-chip.is-on { color: #7edcff; border-color: rgba(126, 220, 255, 0.5); }
+.fairy-chip-quiet { color: rgba(169, 206, 232, 0.6); }
+
+.fairy-off { position: fixed; left: 16px; bottom: 82px; z-index: 9400; pointer-events: auto; }
+.fairy-revive {
+  display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px 0 6px;
+  border-radius: 999px; corner-shape: round; border: 1px solid rgba(126, 220, 255, 0.22);
+  background: rgba(5, 13, 23, 0.86); color: #9fd8ff; cursor: pointer;
+  font: 10px/1 "Bahnschrift", sans-serif; letter-spacing: 0.22em;
+}
+.fairy-revive:hover { border-color: rgba(126, 220, 255, 0.5); }
+
+/* ---------- speak action ---------- */
+.fairy-speak {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; padding: 0; border: 0; border-radius: 7px;
+  background: transparent; color: var(--dsw-alias-label-tertiary, #69809a); cursor: pointer;
+}
+.fairy-speak:hover { background: rgba(126, 220, 255, 0.1); color: #7edcff; }
+
+/* ---------- composer balance (剩余电量) ---------- */
+.fairy-balance {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; line-height: 1; white-space: nowrap;
+  color: var(--dsw-alias-label-tertiary, #69809a);
+  font-variant-numeric: tabular-nums;
+}
+.fairy-balance svg { color: #7edcff; opacity: 0.9; flex: 0 0 auto; }
+.fairy-balance-label { opacity: 0.78; letter-spacing: 0.04em; }
+.fairy-balance-value { color: var(--dsw-alias-label-secondary, #93aec9); letter-spacing: 0.02em; }
+
+/* ---------- splash ---------- */
+.fairy-splash { position: fixed; inset: 0; z-index: 9600; background: #02060c; overflow: hidden; cursor: default; pointer-events: auto; }
+.fairy-splash-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.fairy-splash-veil {
+  position: absolute; inset: 0; pointer-events: none;
+  background:
+    linear-gradient(to bottom, rgba(2, 6, 12, 0.66) 0%, rgba(2, 6, 12, 0.12) 16%, rgba(2, 6, 12, 0) 48%, rgba(2, 6, 12, 0.2) 76%, rgba(2, 6, 12, 0.74) 100%),
+    radial-gradient(120% 85% at 50% 45%, transparent 42%, rgba(2, 6, 12, 0.72) 100%);
+}
+.fairy-splash-hud {
+  position: absolute; inset: 0; padding: 26px 30px 24px;
+  display: flex; flex-direction: column; justify-content: space-between;
+  pointer-events: none; color: rgba(159, 216, 255, 0.78);
+  font-family: "Bahnschrift", "Microsoft YaHei", sans-serif;
+}
+.fairy-hud-top { display: flex; align-items: flex-start; justify-content: space-between; }
+.fairy-hud-left, .fairy-hud-right { display: flex; flex-direction: column; gap: 4px; }
+.fairy-hud-right { align-items: flex-end; }
+.fairy-hud-kicker { font-size: 13px; letter-spacing: 0.32em; color: #cfeaff; }
+.fairy-hud-sub { font-size: 9px; letter-spacing: 0.3em; color: rgba(159, 216, 255, 0.5); }
+.fairy-hud-clock { font-size: 18px; letter-spacing: 0.16em; color: #e6f5ff; font-variant-numeric: tabular-nums; }
+.fairy-hud-center { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: grid; justify-items: center; gap: 10px; text-align: center; }
+.fairy-splash-title { font: 300 44px/1 "Bahnschrift", sans-serif; letter-spacing: 0.4em; color: rgba(230, 245, 255, 0.9); text-indent: 0.4em; }
+.fairy-splash-title b { font-weight: 300; color: #7edcff; }
+.fairy-splash-caption { font-size: 10px; letter-spacing: 0.34em; color: rgba(159, 216, 255, 0.55); }
+.fairy-hud-bottom { display: grid; gap: 10px; }
+.fairy-progress { height: 2px; background: rgba(126, 220, 255, 0.16); overflow: hidden; }
+.fairy-progress-bar { height: 100%; background: linear-gradient(90deg, #4f7cff, #7edcff); box-shadow: 0 0 12px rgba(126, 220, 255, 0.8); transition: width 0.2s linear; }
+.fairy-steps { display: flex; gap: 18px; }
+.fairy-step { display: inline-flex; align-items: center; gap: 6px; font-size: 10px; letter-spacing: 0.2em; color: rgba(159, 216, 255, 0.35); }
+.fairy-step i { width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
+.fairy-step.is-done { color: rgba(159, 216, 255, 0.7); }
+.fairy-step.is-now { color: #7edcff; text-shadow: 0 0 12px rgba(126, 220, 255, 0.7); }
+.fairy-skip {
+  justify-self: end; pointer-events: auto; margin-top: 2px;
+  border: 1px solid rgba(126, 220, 255, 0.26); background: rgba(5, 13, 23, 0.55);
+  color: rgba(200, 232, 250, 0.8); border-radius: 999px; corner-shape: round;
+  height: 26px; padding: 0 14px; font: 10px/1 "Bahnschrift", "Microsoft YaHei"; letter-spacing: 0.2em; cursor: pointer;
+}
+.fairy-skip:hover { border-color: rgba(126, 220, 255, 0.6); color: #e6f5ff; }
+.fairy-tap {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  background: rgba(2, 6, 12, 0.35); color: #dcebf8; font: 14px/1 "Microsoft YaHei", sans-serif;
+  letter-spacing: 0.3em; cursor: pointer; z-index: 3;
+}
+.fairy-tap span { padding: 12px 22px; border: 1px solid rgba(126, 220, 255, 0.4); border-radius: 999px; background: rgba(5, 13, 23, 0.7); }
+
+/* ---------- greeting ---------- */
+.fairy-greet {
+  position: fixed; inset: 0; z-index: 9600; overflow: hidden; cursor: pointer; pointer-events: auto;
+  background: radial-gradient(120% 90% at 50% 40%, #07182b 0%, #040c16 58%, #02060c 100%);
+  display: grid; place-items: center;
+}
+.fairy-greet-bloom {
+  position: absolute; inset: -6%;
+  background: url("/fairy/assets/bloom.webp") center / cover no-repeat;
+  opacity: 0.92; filter: saturate(1.08) blur(1px);
+  animation: fairy-breathe 4.2s ease-in-out infinite;
+  transition: opacity 0.7s ease-out, transform 0.7s ease-out;
+}
+.fairy-greet-scan {
+  position: absolute; inset: 0; pointer-events: none;
+  background:
+    repeating-linear-gradient(to bottom, rgba(150, 215, 255, 0.05) 0 1px, transparent 1px 4px),
+    radial-gradient(120% 90% at 50% 50%, transparent 45%, rgba(0, 0, 0, 0.55) 100%);
+}
+.fairy-greet-inner { position: relative; display: grid; justify-items: center; gap: 26px; padding-bottom: 12px; }
+.fairy-greet-stage {
+  display: grid; place-items: center;
+  transform: translate(0, 0) scale(1);
+  transition: transform 0.74s cubic-bezier(0.6, 0, 0.3, 1), opacity 0.74s ease-out;
+  will-change: transform;
+}
+.fairy-greet.is-launching .fairy-greet-stage {
+  transform: translate(var(--fairy-launch-x, 0px), var(--fairy-launch-y, 0px)) scale(var(--fairy-launch-scale, 0.36));
+  opacity: 0.15;
+}
+.fairy-greet.is-launching .fairy-greet-bloom { opacity: 0; transform: scale(1.15); }
+.fairy-greet.is-launching .fairy-greet-text,
+.fairy-greet.is-launching .fairy-greet-meta { opacity: 0; transition: opacity 0.32s ease-out; }
+.fairy-greet-text { display: grid; gap: 8px; text-align: center; min-height: 74px; }
+.fairy-greet-line {
+  margin: 0; opacity: 0; transform: translateY(6px);
+  color: #e7f3ff; font: 15px/1.8 "Microsoft YaHei", system-ui, sans-serif; letter-spacing: 0.06em;
+  text-shadow: 0 0 22px rgba(90, 150, 255, 0.35);
+  transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+}
+.fairy-greet-line.is-in { opacity: 1; transform: translateY(0); }
+.fairy-greet-line:first-child { color: #9fd8ff; font-size: 13px; letter-spacing: 0.2em; }
+.fairy-greet-meta {
+  position: absolute; left: 0; right: 0; bottom: -96px;
+  display: flex; justify-content: space-between;
+  font: 9px/1 "Bahnschrift", "Microsoft YaHei"; letter-spacing: 0.28em; color: rgba(159, 216, 255, 0.42);
+}
+
+@keyframes fairy-breathe { 0%, 100% { opacity: 0.72; transform: scale(1); } 50% { opacity: 1; transform: scale(1.05); } }
+@keyframes fairy-ring { 0% { transform: scale(1.04); opacity: 0; } 16% { opacity: 0.8; } 66% { opacity: 0.25; } 100% { transform: scale(1.42); opacity: 0; } }
+@keyframes fairy-slice {
+  0%, 96% { transform: translateX(0); filter: none; }
+  96.2% { transform: translateX(var(--fairy-shift, 0px)); filter: brightness(1.35) saturate(1.35); }
+  97.4% { transform: translateX(calc(var(--fairy-shift, 0px) * -0.35)); filter: brightness(1.12); }
+  98.4%, 100% { transform: translateX(0); filter: none; }
+}
+@keyframes fairy-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .fairy-emblem .fairy-bloom,
+  .fairy-emblem .fairy-ring,
+  .fairy-emblem .fairy-mark,
+  .fairy-emblem .fairy-band,
+  .fairy-greet-bloom { animation: none; }
+  .fairy-greet-stage { transition: none; }
+}

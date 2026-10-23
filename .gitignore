@@ -1,0 +1,11 @@
+﻿# python caches
+__pycache__/
+*.pyc
+# generated / local voice
+fairy-mode/assets/voice/
+# misc
+*.part
+*.bak-*
+node_modules/
+.DS_Store
+Thumbs.db

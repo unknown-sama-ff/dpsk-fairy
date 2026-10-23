@@ -1,0 +1,9 @@
+# FAIRY III mode — Host + Client halves of the same local bundle.
+- insert:
+    - id: fairy-mode
+      name: '@local/dsh-fairy-mode'
+      config:
+        persona: true
+        voice: true
+        voiceName: zh-CN-XiaoyiNeural
+        voiceRate: '-2%'
