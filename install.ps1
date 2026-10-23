@@ -24,7 +24,7 @@ if (-not (Test-Path (Join-Path $profileRoot 'package.json'))) {
 }
 Write-Step "profile: $profileRoot"
 
-# 2. 插件来源：本地仓库目录，或从 GitHub 下载
+# 2. 插件来源：本地目录 → git clone → zip 下载
 $source = ''
 if ($PSScriptRoot) {
   $candidate = Join-Path $PSScriptRoot 'fairy-mode'
@@ -33,20 +33,35 @@ if ($PSScriptRoot) {
 if ($source -eq '') {
   $temp = Join-Path $env:TEMP ('dpsk-fairy-' + [guid]::NewGuid().ToString('N'))
   New-Item -ItemType Directory -Force -Path $temp | Out-Null
-  $zip = Join-Path $temp 'repo.zip'
-  Write-Step '下载皮肤包…'
   [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-  try {
-    Invoke-WebRequest -UseBasicParsing -Uri "https://codeload.github.com/$repoSlug/zip/refs/heads/main" -OutFile $zip
-  } catch {
-    Fail "下载失败：$($_.Exception.Message)`n请检查网络，或手动克隆仓库后运行 .\install.ps1。"
+
+  # 2a. 优先 git clone：github.com 走 443，通常比 codeload 稳
+  if (Get-Command git -ErrorAction SilentlyContinue) {
+    Write-Step 'git clone…'
+    $clone = Join-Path $temp 'repo'
+    & git clone --depth 1 "https://github.com/$repoSlug.git" $clone 2>&1 | Out-Null
+    $candidate = Join-Path $clone 'fairy-mode'
+    if (Test-Path (Join-Path $candidate 'package.json')) { $source = $candidate }
   }
-  Expand-Archive -LiteralPath $zip -DestinationPath $temp -Force
-  $source = (Get-ChildItem -LiteralPath $temp -Directory |
-    Where-Object { Test-Path (Join-Path $_.FullName 'fairy-mode\package.json') } |
-    Select-Object -First 1).FullName
-  if (-not $source) { Fail '下载的压缩包里没有找到 fairy-mode 目录。' }
-  $source = Join-Path $source 'fairy-mode'
+
+  # 2b. 回退：下载 zip
+  if ($source -eq '') {
+    $zip = Join-Path $temp 'repo.zip'
+    Write-Step '下载皮肤包…'
+    try {
+      Invoke-WebRequest -UseBasicParsing -Uri "https://codeload.github.com/$repoSlug/zip/refs/heads/main" -OutFile $zip
+      Expand-Archive -LiteralPath $zip -DestinationPath $temp -Force
+      $root = (Get-ChildItem -LiteralPath $temp -Directory -ErrorAction SilentlyContinue |
+        Where-Object { Test-Path (Join-Path $_.FullName 'fairy-mode\package.json') } |
+        Select-Object -First 1).FullName
+      if ($root) { $source = Join-Path $root 'fairy-mode' }
+    } catch {
+      Fail "下载失败：$($_.Exception.Message)`n请手动克隆：git clone https://github.com/$repoSlug.git`n然后在仓库目录里运行 .\install.ps1。"
+    }
+  }
+  if ($source -eq '' -or -not (Test-Path (Join-Path $source 'package.json'))) {
+    Fail "没有找到 fairy-mode 目录。请手动克隆仓库后在仓库目录里运行 .\install.ps1。"
+  }
 }
 Write-Step "插件源: $source"
 
