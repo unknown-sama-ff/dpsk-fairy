@@ -1,8 +1,6 @@
 ﻿# python caches
 __pycache__/
 *.pyc
-# generated / local voice
-fairy-mode/assets/voice/
 # promo build artifacts (keep only the rendered mp4/poster/sources)
 promo/frames/
 promo/boot/

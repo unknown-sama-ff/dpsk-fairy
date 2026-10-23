@@ -81,6 +81,14 @@ fairy-mode/                 # 插件包（可直接链进 DSH profile）
 
 更完整的说明见 [fairy-mode/README.md](fairy-mode/README.md)。
 
+## 语音
+
+- **开箱有声**：仓库自带 `fairy-mode/assets/voice/*.mp3`（欢迎词、三句闲聊、开机词）和内置 edge-tts，装上即可听到问候。
+- **Fairy 本音（可选）**：在本机跑 GPT-SoVITS v2 推理，Host 会自动拉起 `api_v2.py`（127.0.0.1:9880），`/fairy/tts` 返回 `audio/wav`，失败自动回退 edge-tts。完整搭建步骤（底模、权重、兼容补丁、语音包重生成）见 [docs/VOICE.md](docs/VOICE.md)。
+- 权重约 240MB，不进 git；建议放 GitHub Release 或网盘，在本文档里贴链接。
+- 语音包重生成脚本：`tools/gen_voice.py`。
+- 相关配置在 `config.tts`：`engine`、`url`、`gptDir`、`python`、`refAudio`、`promptText`、`promptLang`、`autoStart`。
+
 ## 语音（可选）
 
 仓库不含模型和语音运行时，只含调用逻辑：
