@@ -1,0 +1,859 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>FAIRY · promo stage</title>
+<style>
+  html,body{margin:0;padding:0;background:#000;overflow:hidden}
+  canvas{display:block;width:1920px;height:1080px}
+</style>
+</head>
+<body>
+<canvas id="stage" width="1920" height="1080"></canvas>
+<script>
+'use strict';
+
+const W = 1920, H = 1080, FPS = 30, DUR = 28;
+
+const cv = document.getElementById('stage');
+const g = cv.getContext('2d');
+
+/* ------------------------------------------------------------------ */
+/* math / noise                                                        */
+/* ------------------------------------------------------------------ */
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const seg = (t, a, b) => clamp((t - a) / (b - a), 0, 1);
+const smooth = t => { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); };
+const easeOut = t => 1 - Math.pow(1 - clamp(t, 0, 1), 3);
+const easeInOut = t => { t = clamp(t, 0, 1); return t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; };
+
+let seed = 1;
+const srand = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+const sseed = s => { seed = s >>> 0; };
+
+/* ------------------------------------------------------------------ */
+/* palette + fonts                                                     */
+/* ------------------------------------------------------------------ */
+const C = {
+  bg: '#03080f',
+  deep: '#06121c',
+  cyan: '#59e6ff',
+  cyan2: '#2ee6ff',
+  ice: '#d8f4ff',
+  dim: '#5f8394',
+  dim2: '#38505c',
+  amber: '#ffb454',
+  line: 'rgba(89,230,255,0.20)',
+  line2: 'rgba(89,230,255,0.08)',
+};
+const MONO = '"Cascadia Mono","Consolas","Lucida Console",monospace';
+const SANS = '"Bahnschrift SemiBold","Bahnschrift","Microsoft YaHei UI","Microsoft YaHei",sans-serif';
+const CJK = '"Microsoft YaHei UI","Microsoft YaHei","PingFang SC",sans-serif';
+
+/* ------------------------------------------------------------------ */
+/* assets                                                              */
+/* ------------------------------------------------------------------ */
+const IMG = {};
+const BOOT = [];
+let ENV = [];
+
+function loadImg(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('image ' + src));
+    img.src = src;
+  });
+}
+
+async function loadAll() {
+  const shots = [
+    ['ui', '../fairy-mode/preview/live-skin.png'],
+    ['dock', '../fairy-mode/preview/dock.png'],
+    ['dockHi', '../fairy-mode/preview/live-dock.png'],
+    ['greet', '../fairy-mode/preview/greet.png'],
+    ['balance', '../fairy-mode/preview/live-balance.png'],
+    ['emblem', '../fairy-mode/assets/mascot.svg'],
+  ];
+  await Promise.all(shots.map(([key, src]) => loadImg(src).then(img => { IMG[key] = img; })));
+  for (let i = 1; i <= 48; i += 1) {
+    const name = 'b' + String(i).padStart(3, '0') + '.png';
+    BOOT.push(await loadImg('boot/' + name));
+  }
+  if (Array.isArray(window.__ENV)) ENV = window.__ENV;
+}
+
+/* ------------------------------------------------------------------ */
+/* primitives                                                          */
+/* ------------------------------------------------------------------ */
+function bgFill() {
+  const grd = g.createRadialGradient(W / 2, H * 0.42, 120, W / 2, H * 0.5, W * 0.75);
+  grd.addColorStop(0, '#07141f');
+  grd.addColorStop(0.55, '#040c14');
+  grd.addColorStop(1, '#01050a');
+  g.fillStyle = grd;
+  g.fillRect(0, 0, W, H);
+}
+
+function rr(x, y, w, h, r) {
+  g.beginPath();
+  g.moveTo(x + r, y);
+  g.arcTo(x + w, y, x + w, y + h, r);
+  g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r);
+  g.arcTo(x, y, x + w, y, r);
+  g.closePath();
+}
+
+function text(str, x, y, o = {}) {
+  const size = o.size || 24;
+  const font = o.font || MONO;
+  const weight = o.weight || 400;
+  g.save();
+  g.font = weight + ' ' + size + 'px ' + font;
+  g.fillStyle = o.color || C.ice;
+  g.textBaseline = o.baseline || 'alphabetic';
+  g.globalAlpha = o.alpha === undefined ? 1 : o.alpha;
+  if (o.glow) {
+    g.shadowColor = o.glowColor || C.cyan;
+    g.shadowBlur = o.glow;
+  }
+  if (o.tracking) {
+    let total = 0;
+    for (const ch of str) total += g.measureText(ch).width + o.tracking;
+    total -= o.tracking;
+    let cx = x;
+    if (o.align === 'center') cx = x - total / 2;
+    else if (o.align === 'right') cx = x - total;
+    for (const ch of str) {
+      g.fillText(ch, cx, y);
+      cx += g.measureText(ch).width + o.tracking;
+    }
+  } else {
+    g.textAlign = o.align || 'left';
+    g.fillText(str, x, y);
+  }
+  g.restore();
+}
+
+function typewriter(str, t, speed) {
+  const n = Math.min(str.length, Math.floor(t * speed));
+  return str.slice(0, n) + (n < str.length ? '▌' : '');
+}
+
+function scanlines(alpha) {
+  g.save();
+  g.globalAlpha = alpha;
+  g.fillStyle = '#000';
+  for (let y = 0; y < H; y += 3) g.fillRect(0, y, W, 1);
+  g.restore();
+}
+
+function vignette(alpha) {
+  const grd = g.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, H * 0.95);
+  grd.addColorStop(0, 'rgba(0,0,0,0)');
+  grd.addColorStop(1, 'rgba(0,0,0,' + alpha + ')');
+  g.fillStyle = grd;
+  g.fillRect(0, 0, W, H);
+}
+
+function grain(alpha, t) {
+  sseed(Math.floor(t * 777) + 13);
+  g.save();
+  g.globalAlpha = alpha;
+  for (let i = 0; i < 1400; i += 1) {
+    const x = srand() * W, y = srand() * H;
+    g.fillStyle = srand() > 0.5 ? '#9fe9ff' : '#000';
+    g.fillRect(x, y, 1.4, 1.4);
+  }
+  g.restore();
+}
+
+function hudFrame(alpha, t) {
+  g.save();
+  g.globalAlpha = alpha;
+  g.strokeStyle = C.line;
+  g.lineWidth = 1.5;
+  const m = 40, s = 46;
+  // corners
+  for (const [x, y, dx, dy] of [[m, m, 1, 1], [W - m, m, -1, 1], [m, H - m, 1, -1], [W - m, H - m, -1, -1]]) {
+    g.beginPath();
+    g.moveTo(x, y + dy * s);
+    g.lineTo(x, y);
+    g.lineTo(x + dx * s, y);
+    g.stroke();
+  }
+  // side ticks
+  g.globalAlpha = alpha * 0.5;
+  for (let y = 120; y < H - 120; y += 60) {
+    const len = (y % 180 === 0) ? 12 : 6;
+    g.beginPath(); g.moveTo(m - 16, y); g.lineTo(m - 16 + len, y); g.stroke();
+    g.beginPath(); g.moveTo(W - m + 16 - len, y); g.lineTo(W - m + 16, y); g.stroke();
+  }
+  g.restore();
+}
+
+function timecode(t) {
+  const mm = String(Math.floor(t / 60)).padStart(2, '0');
+  const ss = String(Math.floor(t % 60)).padStart(2, '0');
+  const ff = String(Math.floor((t * FPS) % FPS)).padStart(2, '0');
+  text(mm + ':' + ss + ':' + ff + '  /  00:28:00', W - 60, H - 52, { size: 13, color: C.dim, align: 'right', tracking: 2 });
+  text('H.D.D. // FAIRY', 60, H - 52, { size: 13, color: C.dim, tracking: 3 });
+}
+
+/* glitch the current canvas state: displaced slices + chroma flash */
+function glitch(intensity, t) {
+  if (intensity <= 0) return;
+  sseed(Math.floor(t * 1000) + 7);
+  const n = Math.floor(6 + intensity * 16);
+  for (let i = 0; i < n; i += 1) {
+    const y = srand() * H;
+    const h = 2 + srand() * 26 * intensity;
+    const dx = (srand() - 0.5) * 90 * intensity;
+    g.save();
+    g.globalAlpha = 0.55 + srand() * 0.35;
+    g.drawImage(cv, 0, y, W, h, dx, y, W, h);
+    g.restore();
+  }
+  g.save();
+  g.globalCompositeOperation = 'screen';
+  g.globalAlpha = 0.10 * intensity;
+  g.fillStyle = '#ff2f6d';
+  g.fillRect((srand() - 0.5) * 30 * intensity, 0, W, H);
+  g.fillStyle = '#2ee6ff';
+  g.fillRect((srand() - 0.5) * 30 * intensity, 0, W, H);
+  g.restore();
+}
+
+function flash(alpha, color) {
+  if (alpha <= 0) return;
+  g.save();
+  g.globalAlpha = alpha;
+  g.fillStyle = color || '#bff3ff';
+  g.fillRect(0, 0, W, H);
+  g.restore();
+}
+
+/* draw an image inside a rounded window with a border + shadow */
+function windowShot(img, x, y, w, h, zoom, radius, borderAlpha) {
+  g.save();
+  g.shadowColor = 'rgba(0,0,0,0.75)';
+  g.shadowBlur = 60;
+  g.shadowOffsetY = 24;
+  g.fillStyle = '#040a10';
+  rr(x, y, w, h, radius);
+  g.fill();
+  g.restore();
+
+  g.save();
+  rr(x, y, w, h, radius);
+  g.clip();
+  const scale = Math.max(w / img.width, h / img.height) * zoom;
+  const dw = img.width * scale, dh = img.height * scale;
+  g.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+  // top sheen
+  const sheen = g.createLinearGradient(0, y, 0, y + h * 0.35);
+  sheen.addColorStop(0, 'rgba(120,230,255,0.10)');
+  sheen.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = sheen;
+  g.fillRect(x, y, w, h);
+  g.restore();
+
+  g.save();
+  g.strokeStyle = 'rgba(89,230,255,' + borderAlpha + ')';
+  g.lineWidth = 1.5;
+  rr(x, y, w, h, radius);
+  g.stroke();
+  g.restore();
+}
+
+function callout(x1, y1, x2, y2, progress, label) {
+  const p = smooth(progress);
+  if (p <= 0) return;
+  g.save();
+  g.strokeStyle = C.cyan;
+  g.globalAlpha = 0.85;
+  g.lineWidth = 1.4;
+  const ex = lerp(x1, x2, p), ey = lerp(y1, y2, p);
+  g.beginPath(); g.moveTo(x1, y1); g.lineTo(ex, ey); g.stroke();
+  g.beginPath(); g.arc(x1, y1, 4, 0, Math.PI * 2); g.fillStyle = C.cyan; g.fill();
+  if (p > 0.85) {
+    g.globalAlpha = (p - 0.85) / 0.15;
+    text(label, x2 + (x2 > x1 ? 14 : -14), y2 + 6, {
+      size: 17, color: C.ice, tracking: 2, align: x2 > x1 ? 'left' : 'right',
+    });
+  }
+  g.restore();
+}
+
+function glowDot(x, y, r, alpha) {
+  g.save();
+  g.globalAlpha = alpha;
+  const grd = g.createRadialGradient(x, y, 0, x, y, r * 4);
+  grd.addColorStop(0, 'rgba(120,240,255,0.9)');
+  grd.addColorStop(0.25, 'rgba(80,220,255,0.35)');
+  grd.addColorStop(1, 'rgba(40,180,255,0)');
+  g.fillStyle = grd;
+  g.beginPath(); g.arc(x, y, r * 4, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#e8fbff';
+  g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+  g.restore();
+}
+
+/* ------------------------------------------------------------------ */
+/* scenes                                                              */
+/* ------------------------------------------------------------------ */
+function sceneSignal(t) {
+  const lt = t;
+  bgFill();
+
+  const lineP = easeOut(seg(lt, 0.25, 1.1));
+  const half = 320 * lineP;
+  g.save();
+  g.strokeStyle = C.cyan;
+  g.lineWidth = 1.5;
+  g.globalAlpha = 0.9;
+  g.beginPath(); g.moveTo(W / 2 - half, 548); g.lineTo(W / 2 + half, 548); g.stroke();
+  g.globalAlpha = 0.25;
+  g.beginPath(); g.moveTo(W / 2 - half * 1.25, 548); g.lineTo(W / 2 + half * 1.25, 548); g.stroke();
+  g.restore();
+
+  if (lineP > 0.9) glowDot(W / 2, 548, 3 + Math.sin(lt * 9) * 0.8, 0.9 * seg(lt, 0.9, 1.4));
+
+  const line1 = typewriter('H.D.D. 终端连接中', Math.max(0, lt - 0.9), 14);
+  text(line1, W / 2, 610, { size: 26, color: C.ice, align: 'center', tracking: 8, font: CJK });
+
+  if (lt > 1.7) {
+    const a = smooth(seg(lt, 1.7, 2.1));
+    text('NEURAL LINK // STANDBY', W / 2, 652, { size: 13, color: C.dim, align: 'center', tracking: 5, alpha: a });
+  }
+  if (lt > 2.1) {
+    const a = smooth(seg(lt, 2.1, 2.5));
+    g.save();
+    g.globalAlpha = a;
+    g.strokeStyle = C.line;
+    for (let i = 0; i < 12; i += 1) {
+      const on = i < Math.floor(seg(lt, 2.1, 2.75) * 12);
+      g.fillStyle = on ? C.cyan : 'rgba(89,230,255,0.15)';
+      g.fillRect(W / 2 - 132 + i * 24, 690, 14, 4);
+    }
+    g.restore();
+  }
+
+  if (lt > 2.55) {
+    const a = smooth(seg(lt, 2.55, 2.8));
+    text('SIGNAL ACQUIRED', W / 2, 740, { size: 14, color: C.cyan, align: 'center', tracking: 6, alpha: a });
+  }
+
+  hudFrame(0.5 * smooth(seg(lt, 0.2, 1.2)), t);
+  vignette(0.55);
+  scanlines(0.05);
+  grain(0.035, t);
+  const gl = lt > 2.62 ? (lt - 2.62) / 0.18 : 0;
+  glitch(clamp(gl, 0, 1) * 0.9, t);
+}
+
+function sceneEmblem(t) {
+  const lt = t - 2.8;
+  bgFill();
+
+  const emblem = IMG.emblem;
+  const size = 400;
+  const cx = W / 2, cy = 430;
+  const appear = easeOut(seg(lt, 0, 0.55));
+  const settle = seg(lt, 0.15, 1.3);
+  const gl = (1 - settle) * 1.0;
+
+  g.save();
+  g.globalAlpha = appear;
+  g.translate(cx, cy);
+  const rot = Math.sin(lt * 1.4) * 0.012;
+  g.rotate(rot);
+  g.shadowColor = 'rgba(89,230,255,0.75)';
+  g.shadowBlur = 70;
+  g.drawImage(emblem, -size / 2, -size / 2, size, size);
+  g.restore();
+
+  if (gl > 0.02) {
+    sseed(Math.floor(t * 900) + 3);
+    for (let i = 0; i < 14; i += 1) {
+      const y = cy - size / 2 + srand() * size;
+      const h = 3 + srand() * 18;
+      const dx = (srand() - 0.5) * 70 * gl;
+      g.save();
+      g.globalAlpha = 0.6 * gl;
+      g.drawImage(emblem, -size / 2, y - (cy - size / 2) - h / 2, size, h * 2, cx - size / 2 + dx, y, size, h * 2);
+      g.restore();
+    }
+  }
+
+  // rotating ring
+  g.save();
+  g.translate(cx, cy);
+  g.rotate(lt * 0.35);
+  g.strokeStyle = 'rgba(89,230,255,0.28)';
+  g.lineWidth = 1;
+  g.setLineDash([6, 14]);
+  g.beginPath(); g.arc(0, 0, size * 0.78, 0, Math.PI * 2); g.stroke();
+  g.setLineDash([]);
+  g.restore();
+
+  // title
+  const titleY = 812;
+  const letters = 'FAIRY'.split('');
+  const tracking = 46;
+  g.save();
+  g.font = '600 150px ' + SANS;
+  let total = 0;
+  for (const ch of letters) total += g.measureText(ch).width + tracking;
+  total -= tracking;
+  let x = W / 2 - total / 2;
+  g.restore();
+  for (let i = 0; i < letters.length; i += 1) {
+    const p = easeOut(seg(lt, 0.55 + i * 0.06, 0.95 + i * 0.06));
+    if (p <= 0) continue;
+    g.save();
+    g.globalAlpha = p;
+    g.font = '600 150px ' + SANS;
+    g.fillStyle = C.ice;
+    g.shadowColor = 'rgba(89,230,255,0.85)';
+    g.shadowBlur = 40;
+    g.fillText(letters[i], x, titleY + (1 - p) * 26);
+    g.restore();
+    g.save();
+    g.font = '600 150px ' + SANS;
+    x += g.measureText(letters[i]).width + tracking;
+    g.restore();
+  }
+
+  const subA = smooth(seg(lt, 1.15, 1.65));
+  text('DEEPSEEK HARNESS  ·  H.D.D. SKIN', W / 2, 872, { size: 17, color: C.dim, align: 'center', tracking: 7, alpha: subA });
+  const tagA = smooth(seg(lt, 1.5, 2.0));
+  text('LOCAL VOICE      ONE-CLICK INSTALL      OPEN SOURCE', W / 2, 918, { size: 13, color: C.dim2, align: 'center', tracking: 5, alpha: tagA });
+
+  hudFrame(0.75, t);
+  vignette(0.6);
+  scanlines(0.055);
+  grain(0.03, t);
+  glitch((1 - settle) * 0.55, t);
+}
+
+function sceneBoot(t) {
+  const lt = t - 6.6;
+  const idx = clamp(Math.floor(lt * 12), 0, BOOT.length - 1);
+  const frame = BOOT[idx];
+
+  g.fillStyle = '#000';
+  g.fillRect(0, 0, W, H);
+  const scale = Math.max(W / frame.width, H / frame.height);
+  const dw = frame.width * scale, dh = frame.height * scale;
+  g.save();
+  g.globalAlpha = 0.92;
+  g.drawImage(frame, (W - dw) / 2, (H - dh) / 2, dw, dh);
+  g.restore();
+
+  const ve = g.createLinearGradient(0, 0, 0, H);
+  ve.addColorStop(0, 'rgba(0,4,8,0.72)');
+  ve.addColorStop(0.3, 'rgba(0,4,8,0.05)');
+  ve.addColorStop(0.75, 'rgba(0,4,8,0.15)');
+  ve.addColorStop(1, 'rgba(0,4,8,0.8)');
+  g.fillStyle = ve;
+  g.fillRect(0, 0, W, H);
+
+  text('BOOT SEQUENCE', 96, 108, { size: 15, color: C.cyan, tracking: 6 });
+  text('01 / 03   H.D.D. CORE', 96, 134, { size: 12, color: C.dim, tracking: 3 });
+  text('FRAME ' + String(idx + 1).padStart(3, '0') + ' / 048', W - 96, 108, { size: 13, color: C.dim, align: 'right', tracking: 2 });
+
+  const p = clamp(lt / 3.2, 0, 1);
+  g.save();
+  g.fillStyle = 'rgba(89,230,255,0.15)';
+  g.fillRect(96, H - 120, W - 192, 2);
+  g.fillStyle = C.cyan;
+  g.fillRect(96, H - 120, (W - 192) * p, 2);
+  g.restore();
+  text('LOADING  ' + Math.round(p * 100) + '%', W - 96, H - 136, { size: 12, color: C.dim, align: 'right', tracking: 2 });
+
+  const capA = smooth(seg(lt, 0.7, 1.4));
+  text('开机动画 · 可点击或按 ESC 跳过', 96, H - 78, { size: 20, color: C.ice, font: CJK, alpha: capA });
+
+  vignette(0.55);
+  scanlines(0.04);
+  grain(0.028, t);
+  hudFrame(0.6, t);
+  const out = clamp((lt - 2.95) / 0.25, 0, 1);
+  glitch(out * 0.7, t);
+  if (out > 0.6) flash((out - 0.6) * 0.35, '#9fe9ff');
+}
+
+function sceneUi(t) {
+  const lt = t - 9.8;
+  const ui = IMG.ui;
+  // blurred backdrop
+  g.save();
+  g.filter = 'blur(46px) brightness(0.5) saturate(1.1)';
+  const bs = Math.max(W / ui.width, H / ui.height) * 1.25;
+  g.drawImage(ui, (W - ui.width * bs) / 2, (H - ui.height * bs) / 2, ui.width * bs, ui.height * bs);
+  g.restore();
+  g.fillStyle = 'rgba(2,6,12,0.55)';
+  g.fillRect(0, 0, W, H);
+
+  const w = 1380, h = 800, x = (W - w) / 2, y = 196;
+  const zoom = 1 + 0.06 * smooth(lt / 3.4);
+  const enter = easeOut(seg(lt, 0, 0.6));
+  g.save();
+  g.globalAlpha = enter;
+  g.translate(0, (1 - enter) * 40);
+  windowShot(ui, x, y, w, h, zoom, 10, 0.35);
+  g.restore();
+
+  // callouts
+  callout(x + 150, y + 78, x - 60, y + 78, seg(lt, 0.9, 1.4), '品牌 → FAIRY');
+  callout(x + 96, y + h - 150, x - 60, y + h - 150, seg(lt, 1.5, 2.0), '徽记 · 点击对话');
+  callout(x + w - 330, y + h - 36, x + w + 40, y + h - 36, seg(lt, 2.1, 2.6), '电量 = 余额');
+
+  const capA = smooth(seg(lt, 0.7, 1.2));
+  text('一键把你的 DSH 变成 HDD', W / 2, 96, { size: 38, color: C.ice, font: CJK, align: 'center', tracking: 4, alpha: capA });
+  text('DEEPSEEK HARNESS  ·  FAIRY SKIN', W / 2, 136, { size: 13, color: C.dim, align: 'center', tracking: 6, alpha: capA });
+
+  hudFrame(0.6, t);
+  vignette(0.5);
+  scanlines(0.04);
+  grain(0.025, t);
+  glitch(seg(lt, 3.25, 3.45) * 0.6, t);
+}
+
+function sceneDock(t) {
+  const lt = t - 13.2;
+  bgFill();
+  const img = IMG.dockHi || IMG.dock;
+  const sx = 0, sy = img.height * 0.56, sw = img.width * 0.40, sh = img.height * 0.44;
+  const dw = 880, dh = dw * (sh / sw);
+  const dx = 90, dy = H - dh - 120;
+  const enter = easeOut(seg(lt, 0, 0.55));
+
+  g.save();
+  g.globalAlpha = enter;
+  g.shadowColor = 'rgba(0,0,0,0.75)';
+  g.shadowBlur = 50;
+  g.fillStyle = '#040a10';
+  rr(dx - 12, dy - 12, dw + 24, dh + 24, 12);
+  g.fill();
+  g.restore();
+
+  g.save();
+  g.globalAlpha = enter;
+  rr(dx - 12, dy - 12, dw + 24, dh + 24, 12);
+  g.clip();
+  g.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
+  g.restore();
+
+  g.save();
+  g.globalAlpha = enter;
+  g.strokeStyle = 'rgba(89,230,255,0.34)';
+  g.lineWidth = 1.5;
+  rr(dx - 12, dy - 12, dw + 24, dh + 24, 12);
+  g.stroke();
+  g.restore();
+
+  const a = smooth(seg(lt, 0.35, 0.9));
+  text('点徽记', 1130, 380, { size: 58, color: C.ice, font: CJK, tracking: 4, alpha: a });
+  text('她就在那儿。', 1130, 456, { size: 58, color: C.ice, font: CJK, tracking: 4, alpha: a });
+  text('点窗口其他位置，小窗自动收起', 1134, 518, { size: 21, color: C.dim, font: CJK, alpha: a * 0.95 });
+  text('语音 / 朗读 / 重播开屏 / 关闭皮肤', 1134, 604, { size: 19, color: C.dim2, font: CJK, alpha: a * 0.8 });
+  text('FAIRY  ·  H.D.D. ONLINE', 1134, 660, { size: 14, color: C.cyan, tracking: 5, alpha: a * 0.8 });
+
+  g.save();
+  g.strokeStyle = 'rgba(89,230,255,0.22)';
+  g.lineWidth = 1;
+  g.beginPath(); g.moveTo(1130, 560); g.lineTo(1130 + 560, 560); g.stroke();
+  g.restore();
+
+  // pulse ring on the dock emblem inside the fragment
+  const pr = 74 + 16 * Math.sin(lt * 3.2);
+  g.save();
+  g.globalAlpha = enter * 0.55;
+  g.strokeStyle = C.cyan;
+  g.lineWidth = 1.5;
+  g.beginPath(); g.arc(dx + 118, dy + dh - 150, pr, 0, Math.PI * 2); g.stroke();
+  g.restore();
+
+  hudFrame(0.55, t);
+  vignette(0.55);
+  scanlines(0.045);
+  grain(0.028, t);
+  glitch(seg(lt, 2.2, 2.4) * 0.5, t);
+}
+
+function boltIcon(x, y, s, color) {
+  g.save();
+  g.translate(x, y);
+  g.fillStyle = color;
+  g.beginPath();
+  g.moveTo(1.25 * s, 0);
+  g.lineTo(-0.1 * s, 1.12 * s);
+  g.lineTo(0.55 * s, 1.12 * s);
+  g.lineTo(0.0 * s, 2.2 * s);
+  g.lineTo(1.65 * s, 0.95 * s);
+  g.lineTo(0.8 * s, 0.95 * s);
+  g.lineTo(1.45 * s, 0);
+  g.closePath();
+  g.fill();
+  g.restore();
+}
+
+function sceneBalance(t) {
+  const lt = t - 15.6;
+  bgFill();
+
+  const a = smooth(seg(lt, 0.15, 0.7));
+  text('电量 = 账户余额', 240, 300, { size: 58, color: C.ice, font: CJK, tracking: 4, alpha: a });
+  text('输入框下方 · 每 60 秒刷新 · 取不到就隐藏', 244, 352, { size: 21, color: C.dim, font: CJK, alpha: a * 0.95 });
+
+  // composer card
+  const cx = 240, cy = 450, cw = 1440, ch = 200;
+  g.save();
+  g.globalAlpha = a;
+  g.fillStyle = 'rgba(7,16,24,0.92)';
+  rr(cx, cy, cw, ch, 16);
+  g.fill();
+  g.strokeStyle = 'rgba(89,230,255,0.24)';
+  g.lineWidth = 1.5;
+  rr(cx, cy, cw, ch, 16);
+  g.stroke();
+  g.restore();
+
+  text('发消息或创建任务，/ 调用指令，@ 文件或对话', cx + 40, cy + 62, { size: 21, color: '#5f8394', font: CJK, alpha: a });
+  // tool row
+  g.save();
+  g.globalAlpha = a * 0.8;
+  g.strokeStyle = 'rgba(89,230,255,0.30)';
+  g.lineWidth = 1.2;
+  g.beginPath(); g.arc(cx + 40, cy + 150, 12, 0, Math.PI * 2); g.stroke();
+  g.beginPath(); g.moveTo(cx + 34, cy + 150); g.lineTo(cx + 46, cy + 150); g.moveTo(cx + 40, cy + 144); g.lineTo(cx + 40, cy + 156); g.stroke();
+  g.restore();
+  text('完全权限', cx + 72, cy + 158, { size: 18, color: C.dim, font: CJK, alpha: a * 0.8 });
+  text('DeepSeek-V4.1-Flash', cx + cw - 300, cy + 158, { size: 18, color: C.ice, font: MONO, alpha: a * 0.75 });
+  text('Max', cx + cw - 150, cy + 158, { size: 16, color: C.dim, alpha: a * 0.7 });
+  g.save();
+  g.globalAlpha = a * 0.8;
+  g.fillStyle = 'rgba(89,230,255,0.25)';
+  g.beginPath(); g.arc(cx + cw - 56, cy + 150, 18, 0, Math.PI * 2); g.fill();
+  g.restore();
+
+  // status row
+  const rowY = cy + ch + 84;
+  const rowA = smooth(seg(lt, 0.35, 0.9));
+  g.save();
+  g.globalAlpha = rowA;
+  text('5 轮 473 步', cx + 20, rowY, { size: 18, color: C.dim, font: CJK });
+  text('· 211 tok/s', cx + 170, rowY, { size: 18, color: C.dim, font: CJK });
+  text('· 155M tok', cx + 340, rowY, { size: 18, color: C.dim, font: CJK });
+  text('· 缓存命中 99.8%', cx + 500, rowY, { size: 18, color: C.dim, font: CJK });
+  g.restore();
+
+  // highlighted balance block
+  const bx = cx + 760;
+  const ring = 0.45 + 0.25 * Math.sin(lt * 4);
+  g.save();
+  g.globalAlpha = rowA;
+  g.fillStyle = 'rgba(89,230,255,0.10)';
+  rr(bx - 16, rowY - 30, 236, 44, 9);
+  g.fill();
+  g.strokeStyle = 'rgba(89,230,255,' + ring.toFixed(3) + ')';
+  g.lineWidth = 1.5;
+  rr(bx - 16, rowY - 30, 236, 44, 9);
+  g.stroke();
+  g.restore();
+
+  g.save();
+  g.globalAlpha = rowA;
+  boltIcon(bx + 4, rowY - 18, 8, C.cyan);
+  g.restore();
+  text('电量', bx + 28, rowY, { size: 19, color: C.cyan, font: CJK, alpha: rowA });
+  text('¥8.21', bx + 84, rowY, { size: 20, color: C.ice, font: MONO, glow: 14, alpha: rowA });
+
+  // context percentage ring
+  g.save();
+  g.globalAlpha = rowA * 0.75;
+  g.strokeStyle = 'rgba(89,230,255,0.45)';
+  g.lineWidth = 2;
+  g.beginPath(); g.arc(cx + cw - 120, rowY - 8, 13, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * 0.65); g.stroke();
+  g.restore();
+  text('65%', cx + cw - 92, rowY, { size: 18, color: C.dim, font: MONO, alpha: rowA });
+
+  hudFrame(0.55, t);
+  vignette(0.5);
+  scanlines(0.045);
+  grain(0.028, t);
+  glitch(seg(lt, 2.2, 2.4) * 0.5, t);
+}
+
+function sceneVoice(t) {
+  const lt = t - 18.2;
+  bgFill();
+
+  const a = smooth(seg(lt, 0.1, 0.6));
+  text('声音，也是她。', 220, 360, { size: 68, color: C.ice, font: CJK, tracking: 4, alpha: a });
+  text('本地 GPT-SoVITS v2 · 零上传 · 零云端', 224, 412, { size: 20, color: C.dim, font: CJK, alpha: a * 0.9 });
+
+  // waveform
+  const bars = 108;
+  const baseY = 700, maxH = 200;
+  const voiceStart = 0.15; // seconds into scene
+  const vt = lt - voiceStart;
+  for (let i = 0; i < bars; i += 1) {
+    const x = 220 + i * ((W - 440) / bars);
+    let amp = 0;
+    if (vt > 0 && ENV.length > 0) {
+      const idx = clamp(Math.floor((vt / 6.12) * ENV.length), 0, ENV.length - 1);
+      const jitter = 0.35 + 0.65 * Math.abs(Math.sin(i * 1.7 + lt * 6));
+      amp = clamp(ENV[idx] * 2.6, 0, 1) * jitter;
+    } else {
+      amp = 0.03 + 0.02 * Math.sin(lt * 3 + i * 0.2);
+    }
+    const hh = Math.max(2, amp * maxH);
+    const x2 = x + ((W - 440) / bars) * 0.45;
+    g.save();
+    const grd = g.createLinearGradient(0, baseY - hh, 0, baseY + hh);
+    grd.addColorStop(0, 'rgba(120,240,255,0.95)');
+    grd.addColorStop(0.5, 'rgba(89,230,255,0.55)');
+    grd.addColorStop(1, 'rgba(46,180,255,0.15)');
+    g.fillStyle = grd;
+    g.fillRect(x, baseY - hh, x2 - x, hh * 2);
+    g.restore();
+  }
+  // baseline
+  g.save();
+  g.globalAlpha = 0.3;
+  g.strokeStyle = C.cyan;
+  g.lineWidth = 1;
+  g.beginPath(); g.moveTo(220, baseY); g.lineTo(W - 220, baseY); g.stroke();
+  g.restore();
+
+  const tagA = smooth(seg(lt, 1.6, 2.2));
+  text('FAIRY VOICE  ·  LOCAL INFERENCE', W / 2, baseY + 180, { size: 14, color: C.dim, align: 'center', tracking: 6, alpha: tagA });
+
+  hudFrame(0.55, t);
+  vignette(0.6);
+  scanlines(0.05);
+  grain(0.03, t);
+  glitch(seg(lt, 3.2, 3.4) * 0.5, t);
+}
+
+function sceneInstall(t) {
+  const lt = t - 21.6;
+  bgFill();
+
+  const cardW = 1420, cardH = 430, cardX = (W - cardW) / 2, cardY = 270;
+  g.save();
+  g.shadowColor = 'rgba(0,0,0,0.7)';
+  g.shadowBlur = 70;
+  g.shadowOffsetY = 30;
+  g.fillStyle = '#051018';
+  rr(cardX, cardY, cardW, cardH, 14);
+  g.fill();
+  g.restore();
+  g.save();
+  g.strokeStyle = 'rgba(89,230,255,0.32)';
+  g.lineWidth = 1.5;
+  rr(cardX, cardY, cardW, cardH, 14);
+  g.stroke();
+  g.restore();
+
+  // title bar
+  g.save();
+  for (let i = 0; i < 3; i += 1) {
+    g.fillStyle = ['#ff5f57', '#febc2e', '#28c840'][i];
+    g.globalAlpha = 0.75;
+    g.beginPath(); g.arc(cardX + 30 + i * 24, cardY + 30, 6, 0, Math.PI * 2); g.fill();
+  }
+  g.restore();
+  text('powershell', cardX + 130, cardY + 36, { size: 14, color: C.dim, tracking: 2 });
+
+  const a = smooth(seg(lt, 0.1, 0.6));
+  text('一行命令，装好你的 Fairy', W / 2, 170, { size: 44, color: C.ice, font: CJK, align: 'center', tracking: 4, alpha: a });
+  text('WINDOWS POWERSHELL', W / 2, 212, { size: 13, color: C.dim, align: 'center', tracking: 8, alpha: a * 0.9 });
+
+  const cmd = 'irm https://raw.githubusercontent.com/unknown-sama-ff/dpsk-fairy/main/install.ps1 | iex';
+  const typed = typewriter(cmd, Math.max(0, lt - 0.55), 62);
+  text('> ' + typed, cardX + 60, cardY + 120, { size: 24, color: C.ice, font: MONO });
+
+  if (lt > 2.1) {
+    const checkA = smooth(seg(lt, 2.1, 2.5));
+    text('✓ 已安装到 DSH profile', cardX + 60, cardY + 205, { size: 23, color: C.cyan, font: CJK, alpha: checkA });
+    text('重启 DeepSeek Harness 即可看到开屏动画', cardX + 60, cardY + 247, { size: 21, color: C.ice, font: CJK, alpha: checkA * 0.9 });
+    text('git clone 方式同样可用：github.com/unknown-sama-ff/dpsk-fairy', cardX + 60, cardY + 340, { size: 16, color: C.dim, font: MONO, alpha: checkA * 0.85 });
+  }
+
+  hudFrame(0.55, t);
+  vignette(0.6);
+  scanlines(0.05);
+  grain(0.028, t);
+  glitch(seg(lt, 3.4, 3.6) * 0.5, t);
+}
+
+function sceneEnd(t) {
+  const lt = t - 25.2;
+  bgFill();
+
+  const emblem = IMG.emblem;
+  const size = 190;
+  const a = easeOut(seg(lt, 0, 0.6));
+  g.save();
+  g.globalAlpha = a;
+  g.shadowColor = 'rgba(89,230,255,0.8)';
+  g.shadowBlur = 50;
+  g.drawImage(emblem, W / 2 - size / 2, 262 - size / 2, size, size);
+  g.restore();
+
+  text('FAIRY', W / 2, 520, { size: 130, color: C.ice, align: 'center', tracking: 40, glow: 40 });
+  text('github.com/unknown-sama-ff/dpsk-fairy', W / 2, 640, { size: 24, color: C.cyan, align: 'center', tracking: 1 });
+  text('现在，轮到你唤醒她。', W / 2, 720, { size: 30, color: C.ice, font: CJK, align: 'center', tracking: 4, alpha: smooth(seg(lt, 1.0, 1.5)) });
+
+  hudFrame(0.6, t);
+  vignette(0.6);
+  scanlines(0.05);
+  grain(0.028, t);
+
+  const fade = 1 - smooth(seg(lt, 2.5, 2.8));
+  if (fade < 1) { g.save(); g.globalAlpha = 1 - fade; g.fillStyle = '#000'; g.fillRect(0, 0, W, H); g.restore(); }
+}
+
+/* ------------------------------------------------------------------ */
+/* timeline                                                            */
+/* ------------------------------------------------------------------ */
+const SCENES = [
+  [0.0, 2.8, sceneSignal],
+  [2.8, 6.6, sceneEmblem],
+  [6.6, 9.8, sceneBoot],
+  [9.8, 13.2, sceneUi],
+  [13.2, 15.6, sceneDock],
+  [15.6, 18.2, sceneBalance],
+  [18.2, 21.6, sceneVoice],
+  [21.6, 25.2, sceneInstall],
+  [25.2, 28.0, sceneEnd],
+];
+
+function render(t) {
+  t = clamp(t, 0, DUR - 1 / FPS);
+  g.clearRect(0, 0, W, H);
+  let scene = SCENES[SCENES.length - 1];
+  for (const s of SCENES) if (t >= s[0] && t < s[1]) { scene = s; break; }
+  scene[2](t);
+
+  // global transition glitches at scene boundaries
+  for (const s of SCENES.slice(1)) {
+    const d = t - s[0];
+    if (d >= 0 && d < 0.16) glitch((1 - d / 0.16) * 0.8, t);
+  }
+  timecode(t);
+}
+
+window.__renderFrame = t => { render(t); return true; };
+window.__ENV = window.__ENV || [];
+
+loadAll().then(() => { window.__ready = true; }).catch(e => { window.__error = String(e); });
+</script>
+</body>
+</html>

@@ -32,6 +32,14 @@ powershell -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.c
 - **剩余电量**：输入框下方统计行最右侧显示 `⚡ 电量 ¥x.xx`（账户余额），60 秒 / 窗口聚焦时刷新。
 - **人设**：Host 向 system prompt 注入 Fairy 人设段（称呼「主人」、冷静精准）。
 
+## 宣传片
+
+[![FAIRY 宣传片](promo/poster.png)](promo/fairy-promo.mp4)
+
+28 秒 · 1920×1080 · 30fps · 带中文语音与音效：[promo/fairy-promo.mp4](promo/fairy-promo.mp4)
+
+片源可复现：`promo/stage.html` 是 Canvas 时间线（28s 分镜：信号 → 徽记 → 开机 → 界面 → 徽记对话 → 电量 → 语音 → 安装 → 片尾），`promo/render.mjs` 用 CDP 逐帧截图并交给 ffmpeg 合成音轨。
+
 ## 截图
 
 | 开屏 | 问候 | 徽记 + 对话 |

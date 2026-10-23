@@ -3,6 +3,14 @@ __pycache__/
 *.pyc
 # generated / local voice
 fairy-mode/assets/voice/
+# promo build artifacts (keep only the rendered mp4/poster/sources)
+promo/frames/
+promo/boot/
+promo/.edge-profile/
+promo/audio/*.wav
+promo/env.json
+promo/*.log
+promo/*.zip
 # misc
 *.part
 *.bak-*
