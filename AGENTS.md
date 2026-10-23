@@ -51,6 +51,14 @@ DSH 桌面端在启动时缓存客户端模块图。**安装完文件后必须�
 - 界面为深色 HUD（不是普通浅色）；
 - 点徽记弹出小窗，点窗口其他位置会收起。
 
+## 语音权重（可选）
+
+仓库自带语音包，装完就有声；要 Fairy 本音需自备 GPT-SoVITS v2 权重：
+
+- 获取渠道：https://github.com/Michae1o/fairy-stackchan/tree/main/voice-package
+- 完整步骤：`docs/VOICE.md`
+- 权重与参考音频**不要**再分发到公开仓库。
+
 ## 卸载
 
 ```powershell

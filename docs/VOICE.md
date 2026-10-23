@@ -4,6 +4,28 @@
 > 所以别人装上皮肤后开屏问候、点徽记闲聊都是有声的，只是音色是微软的。
 > 想要「Fairy 本音」，需要自己在本机跑 GPT-SoVITS 推理。
 
+## 0. 权重和参考音频从哪来
+
+**本仓库不附带权重与参考音频**（单文件超 100MB、且音色版权归原声者/训练者）。
+
+获取渠道看这里：
+
+- 教程仓库：**https://github.com/Michae1o/fairy-stackchan/tree/main/voice-package**
+- 模型 + 参考音色网盘（UP 主「白菜工厂1145号员工」分享，免登录）：
+  https://1730154.share.123pan.cn/123pan/UHp9-kqi8H
+- UP 主主页：https://space.bilibili.com/518098961
+
+需要的是「三件套」：
+
+| 文件 | 用途 | 放到 |
+|---|---|---|
+| `Fairy-e10.ckpt` | GPT 微调权重（约 148MB） | `GPT_SoVITS/GPT_weights_v2/` |
+| `Fairy_e10_s870.pth` | SoVITS 微调权重（约 85MB） | `GPT_SoVITS/SoVITS_weights_v2/` |
+| 参考音频 `.wav`（5–10 秒，附文本） | 音色提示 | 任意路径，填进 `refAudio` / `promptText` |
+
+> ⚠️ 只自己用，**不要再把这些文件二次分发**到公开仓库；商用请换自己的声音录参考音频。
+> 没有微调权重时，GPT-SoVITS 也能用「零样本」模式（只给参考音频 + 底模），音色相似度会低一些。
+
 ## 需要什么
 
 - Windows + NVIDIA 显卡（6GB 显存起，8GB 稳）
