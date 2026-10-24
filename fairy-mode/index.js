@@ -270,11 +270,14 @@ async function ensureGptServer(tts, ctx) {
       return false
     }
     ctx.logger?.info?.('fairy-mode: starting GPT-SoVITS server')
-    const child = spawn(tts.python, ['api_v2.py', '-a', '127.0.0.1', '-p', String(port), '-c', 'GPT_SoVITS/configs/tts_infer.yaml'], {
+    /* pythonw.exe is the windowless interpreter: no console window for the
+       server, which otherwise pops up whenever DSH starts. */
+    const windowless = join(dirname(tts.python), 'pythonw.exe')
+    const launcher = existsSync(windowless) ? windowless : tts.python
+    const child = spawn(launcher, ['api_v2.py', '-a', '127.0.0.1', '-p', String(port), '-c', 'GPT_SoVITS/configs/tts_infer.yaml'], {
       cwd: tts.gptDir,
       windowsHide: true,
       stdio: 'ignore',
-      detached: true,
       env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' },
     })
     /* The child must not keep the Host's event loop alive: the desktop updater
