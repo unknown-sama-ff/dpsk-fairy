@@ -91,6 +91,18 @@ export function apply(ctx, rawConfig) {
     },
   }), 'fairy-mode: /fairy routes')
 
+  /* Tear the spawned server down with the Host (and on bundle reload):
+     a lingering child keeps the Host from exiting during desktop updates. */
+  ctx.effect(() => () => {
+    disposed = true
+    try { activeAbort?.abort() } catch { /* ignore */ }
+    const child = serverChild
+    serverChild = null
+    if (child !== null && child.exitCode === null && !child.killed) {
+      try { child.kill() } catch { /* ignore */ }
+    }
+  }, 'fairy-mode: tts lifecycle')
+
   /* Warm the GPT-SoVITS server while the splash plays, so the first spoken
      reply does not pay the model-load delay. */
   if (config.voice && config.tts.engine !== 'edge' && config.tts.autoStart) {
@@ -217,6 +229,9 @@ async function asset(req, res, relative) {
 /** One synthesis at a time keeps the bundled interpreter from thrashing. */
 let chain = Promise.resolve()
 let serverTask = null
+let serverChild = null
+let activeAbort = null
+let disposed = false
 
 function ttsPort(tts) {
   try { return Number(new URL(tts.url).port) || 9880 } catch { return 9880 }
@@ -259,10 +274,15 @@ async function ensureGptServer(tts, ctx) {
       cwd: tts.gptDir,
       windowsHide: true,
       stdio: 'ignore',
+      detached: true,
       env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' },
     })
+    /* The child must not keep the Host's event loop alive: the desktop updater
+       waits for the Host to exit by itself after it acknowledges shutdown. */
+    child.unref()
+    serverChild = child
     child.on('error', (error) => ctx.logger?.warn?.(`fairy-mode: TTS server error ${error.message}`))
-    for (let i = 0; i < 120; i += 1) {
+    for (let i = 0; i < 120 && !disposed; i += 1) {
       await new Promise((resolveWait) => setTimeout(resolveWait, 1000))
       if (await portOpen(port)) {
         ctx.logger?.info?.('fairy-mode: GPT-SoVITS server ready')
@@ -316,12 +336,19 @@ async function gptSovitsBytes(text, tts) {
     media_type: 'wav',
     streaming_mode: false,
   }
-  const response = await fetch(tts.url + '/tts', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(300_000),
-  })
+  const controller = new AbortController()
+  activeAbort = controller
+  let response
+  try {
+    response = await fetch(tts.url + '/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: AbortSignal.any([controller.signal, AbortSignal.timeout(300_000)]),
+    })
+  } finally {
+    if (activeAbort === controller) activeAbort = null
+  }
   if (!response.ok) throw new Error('gpt-sovits HTTP ' + response.status)
   const bytes = Buffer.from(await response.arrayBuffer())
   if (bytes.length < 1000) throw new Error('gpt-sovits returned empty audio')
