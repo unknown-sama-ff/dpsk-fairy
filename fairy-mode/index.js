@@ -156,6 +156,10 @@ async function serve(req, res, config, ctx) {
     }
   }
 
+  
+
+  
+
   if (rest.startsWith('assets/')) return asset(req, res, rest.slice('assets/'.length))
   return sendJson(res, 404, { error: 'not found' })
 }

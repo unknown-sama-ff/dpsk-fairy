@@ -53,6 +53,21 @@ window.__ModuleLoader__.load({
 
     const PAIRS = {
       '--dsw-alias-bg-base': ['rgba(3, 8, 15, 0.30)', 'rgba(3, 8, 15, 0.30)'],
+      '--dsw-static-neutral-00': ['rgba(4, 10, 18, 0.98)', 'rgba(4, 10, 18, 0.98)'],
+      '--dsw-static-neutral-50': ['rgba(7, 16, 28, 0.98)', 'rgba(7, 16, 28, 0.98)'],
+      '--dsw-static-neutral-100': ['rgba(10, 22, 36, 0.98)', 'rgba(10, 22, 36, 0.98)'],
+      '--dsw-static-neutral-150': ['rgba(12, 27, 43, 0.98)', 'rgba(12, 27, 43, 0.98)'],
+      '--dsw-static-neutral-200': ['rgba(18, 35, 54, 0.98)', 'rgba(18, 35, 54, 0.98)'],
+      '--dsw-static-neutral-300': ['rgba(35, 60, 78, 0.98)', 'rgba(35, 60, 78, 0.98)'],
+      '--dsw-static-neutral-bluish-00': ['rgba(4, 10, 18, 0.98)', 'rgba(4, 10, 18, 0.98)'],
+      '--dsw-static-neutral-bluish-50': ['rgba(7, 16, 28, 0.98)', 'rgba(7, 16, 28, 0.98)'],
+      '--dsw-static-neutral-bluish-60': ['rgba(8, 18, 30, 0.98)', 'rgba(8, 18, 30, 0.98)'],
+      '--dsw-static-neutral-bluish-75': ['rgba(10, 22, 36, 0.98)', 'rgba(10, 22, 36, 0.98)'],
+      '--dsw-static-neutral-bluish-100': ['rgba(12, 27, 43, 0.98)', 'rgba(12, 27, 43, 0.98)'],
+      '--dsw-static-neutral-bluish-150': ['rgba(15, 31, 48, 0.98)', 'rgba(15, 31, 48, 0.98)'],
+      '--dsw-static-neutral-bluish-200': ['rgba(20, 40, 60, 0.98)', 'rgba(20, 40, 60, 0.98)'],
+      '--dsw-static-neutral-bluish-300': ['rgba(35, 60, 78, 0.98)', 'rgba(35, 60, 78, 0.98)'],
+      '--dsw-static-neutral-bluish-400': ['#7f9caf', '#7f9caf'],
       '--dsw-alias-bg-layer-1': ['rgba(7, 17, 30, 0.52)', 'rgba(7, 17, 30, 0.52)'],
       '--dsw-alias-bg-layer-2': ['rgba(9, 22, 38, 0.72)', 'rgba(9, 22, 38, 0.72)'],
       '--dsw-alias-bg-layer-3': ['rgba(10, 22, 36, 0.68)', 'rgba(10, 22, 36, 0.68)'],
@@ -117,6 +132,97 @@ window.__ModuleLoader__.load({
       try { themeApi?.setTheme(themePrevious === 'fairy' ? 'dark' : themePrevious) } catch { /* ignore */ }
     }
 
+    /* Lightweight re-assert used by the theme guard: only fixes the markers the
+       presenter can drop. Rewriting every inline token here would force a full
+       style recalculation of open popovers and show up as a flash. */
+    function reassertSkin() {
+      const root = document.documentElement
+      root.classList.add('fairy-on')
+      root.style.colorScheme = 'dark'
+      root.setAttribute('data-ds-theme-source', 'dark')
+      root.style.backgroundColor = '#03070d'
+      if (document.body) document.body.setAttribute('data-ds-dark-theme', '')
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* running indicator (深度求索中 → HDD计算中，鲸鱼尾 → FAIRY)            */
+    /* ------------------------------------------------------------------ */
+
+    const THINK_COPY = {
+      original: '深度求索中',
+      branded: 'HDD计算中',
+      originalEn: 'Deep diving',
+      brandedEn: 'HDD computing',
+    }
+
+    let brandFrame = 0
+
+    /* Find the innermost element that carries the stock running copy (the chat
+       plugin's shimmer span). The screen-reader status span is skipped: it must
+       keep announcing the plugin's own wording. */
+    function findRunningLabel(row) {
+      let best = null
+      for (const el of row.querySelectorAll('span, p, div')) {
+        if (el.getAttribute('role') === 'status') continue
+        const text = el.textContent || ''
+        if (!text.includes(THINK_COPY.original) && !text.includes(THINK_COPY.originalEn)) continue
+        const nested = Array.from(el.children).some((child) => {
+          const childText = child.textContent || ''
+          return childText.includes(THINK_COPY.original) || childText.includes(THINK_COPY.originalEn)
+        })
+        if (!nested) best = el
+      }
+      return best
+    }
+
+    /* The stock label is hidden and a sibling we own (@see .fairy-think-label)
+       mirrors it with the branded wording. The sibling deliberately does NOT
+       reuse the stock class names: the shimmer paints its text with a clipped
+       gradient, so copied classes would render ours invisible. */
+    function brandRunningRows(on) {
+      const rows = document.querySelectorAll('[data-chat-running]')
+      for (const row of rows) {
+        if (!on) {
+          row.removeAttribute('data-fairy-think')
+          for (const node of row.querySelectorAll('[data-fairy-mine]')) node.remove()
+          for (const node of row.querySelectorAll('[data-fairy-orig]')) node.removeAttribute('data-fairy-orig')
+          continue
+        }
+        row.setAttribute('data-fairy-think', '')
+        const label = findRunningLabel(row)
+        if (label === null) continue
+        label.setAttribute('data-fairy-orig', '')
+        /* Mount beside the label's wrapper, not inside it: the shimmer clips its
+           own subtree, so a nested mirror would be cut off. */
+        const host = row.lastElementChild !== null && row.lastElementChild.contains(label)
+          ? row.lastElementChild
+          : label.parentElement
+        if (host === null) continue
+        let mine = host.querySelector('[data-fairy-mine]')
+        if (mine === null) {
+          mine = document.createElement('span')
+          mine.setAttribute('data-fairy-mine', '')
+          mine.className = 'fairy-think-label'
+          host.appendChild(mine)
+        }
+        const stock = label.textContent || ''
+        const branded = stock
+          .split(THINK_COPY.original).join(THINK_COPY.branded)
+          .split(THINK_COPY.originalEn).join(THINK_COPY.brandedEn)
+        if (mine.textContent !== branded) mine.textContent = branded
+      }
+    }
+
+    /* Re-apply after React re-renders the label (it owns that text node). */
+    function scheduleBrand(on) {
+      if (brandFrame !== 0) return
+      brandFrame = window.requestAnimationFrame(() => {
+        brandFrame = 0
+        if (!document.querySelector('[data-chat-running]')) return
+        brandRunningRows(on)
+      })
+    }
+
     function setSkin(on) {
       document.documentElement.classList.toggle('fairy-on', on)
       if (on) {
@@ -130,13 +236,21 @@ window.__ModuleLoader__.load({
           document.body.setAttribute('data-ds-dark-theme', '')
         }
         document.documentElement.style.colorScheme = 'dark'
+        /* The Electron shell mirrors this attribute into nativeTheme, so the
+           native frame flips to light for a frame unless it stays 'dark'. */
+        document.documentElement.setAttribute('data-ds-theme-source', 'dark')
+        document.documentElement.style.backgroundColor = '#03070d'
+        brandRunningRows(true)
       } else {
         disableTheme()
+        document.documentElement.removeAttribute('data-ds-theme-source')
+        document.documentElement.style.backgroundColor = ''
         if (document.body) {
           for (const name of Object.keys(PAIRS)) document.body.style.removeProperty(name)
           document.body.removeAttribute('data-ds-dark-theme')
         }
         document.documentElement.style.colorScheme = ''
+        brandRunningRows(false)
       }
     }
 
@@ -735,17 +849,54 @@ window.__ModuleLoader__.load({
           const style = document.createElement('link')
           style.id = 'fairy-mode-style'
           style.rel = 'stylesheet'
-          style.href = ASSET + '/fairy.css?v=8'
+          style.href = ASSET + '/fairy.css?v=13'
           document.head.appendChild(style)
           const skinOn = () => {
             try { return window.sessionStorage.getItem(KEY.closed) !== '1' } catch { return true }
           }
+          const skinApplied = () => document.documentElement.classList.contains('fairy-on')
+            && document.body?.getAttribute('data-ds-dark-theme') === ''
+            && document.documentElement.getAttribute('data-ds-theme-source') === 'dark'
+          const guard = () => {
+            if (!skinOn() || skinApplied()) return
+            try {
+              const snapshot = themeApi?.getTheme?.()
+              /* A settings reload can drop the registered theme; put it back
+                 before re-asserting the palette. */
+              if (snapshot && snapshot.preference !== 'fairy') {
+                themeDispose = null
+                enableTheme()
+              } else {
+                themeApi?.setTheme('fairy')
+              }
+            } catch { /* theme may be disposing */ }
+            reassertSkin()
+          }
+          const observer = new MutationObserver(guard)
+          observer.observe(document.documentElement, {
+            attributes: true,
+            attributeFilter: ['class', 'style', 'data-ds-theme-source'],
+          })
+          observer.observe(document.body, {
+            attributes: true,
+            attributeFilter: ['class', 'style', 'data-ds-dark-theme'],
+          })
+          /* React rewrites the running label every tick; re-brand it whenever
+             the chat flow mutates and the skin is on. */
+          const chatObserver = new MutationObserver(() => {
+            if (!document.documentElement.classList.contains('fairy-on')) return
+            if (document.querySelector('[data-chat-running]') === null) return
+            scheduleBrand(true)
+          })
+          chatObserver.observe(document.body, { childList: true, subtree: true, characterData: true })
           setSkin(skinOn())
           /* The theme feature hydrates its durable preference asynchronously and
              repaints body when it lands; re-assert once it has settled. */
           const reassert = window.setTimeout(() => setSkin(skinOn()), 1400)
           return () => {
             window.clearTimeout(reassert)
+            observer.disconnect()
+            chatObserver.disconnect()
             style.remove()
             setSkin(false)
             stopVoice()

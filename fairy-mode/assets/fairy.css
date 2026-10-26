@@ -25,12 +25,163 @@ html.fairy-on #root::after {
     radial-gradient(130% 90% at 50% 30%, transparent 52%, rgba(0, 0, 0, 0.42) 100%);
 }
 html.fairy-on body {
+  --dsw-static-neutral-00: rgba(4, 10, 18, 0.98) !important;
+  --dsw-static-neutral-50: rgba(7, 16, 28, 0.98) !important;
+  --dsw-static-neutral-100: rgba(10, 22, 36, 0.98) !important;
+  --dsw-static-neutral-150: rgba(12, 27, 43, 0.98) !important;
+  --dsw-static-neutral-200: rgba(18, 35, 54, 0.98) !important;
+  --dsw-static-neutral-300: rgba(35, 60, 78, 0.98) !important;
+  --dsw-static-neutral-bluish-00: rgba(4, 10, 18, 0.98) !important;
+  --dsw-static-neutral-bluish-50: rgba(7, 16, 28, 0.98) !important;
+  --dsw-static-neutral-bluish-60: rgba(8, 18, 30, 0.98) !important;
+  --dsw-static-neutral-bluish-75: rgba(10, 22, 36, 0.98) !important;
+  --dsw-static-neutral-bluish-100: rgba(12, 27, 43, 0.98) !important;
+  --dsw-static-neutral-bluish-150: rgba(15, 31, 48, 0.98) !important;
+  --dsw-static-neutral-bluish-200: rgba(20, 40, 60, 0.98) !important;
+  --dsw-static-neutral-bluish-300: rgba(35, 60, 78, 0.98) !important;
+  --dsw-static-neutral-bluish-400: #7f9caf !important;
   --dsw-alias-label-tertiary: #69809a !important;
+  --dsw-alias-label-secondary: #93aec9 !important;
+  --dsw-alias-label-primary: #e3effb !important;
+  --dsw-alias-label-primary-bluish: #dbe9ff !important;
+  /* De-emphasised body copy (queued steering previews and similar) sits on a
+     dark HUD here, so the shipped dim value reads as near-black. */
+  --dsw-alias-label-primary-dimmed: #c4d8e9 !important;
+  --dsw-alias-border-l1: rgba(126, 220, 255, 0.14) !important;
+  --dsw-alias-border-l2: rgba(126, 220, 255, 0.30) !important;
+  --dsw-alias-border-l3: rgba(126, 220, 255, 0.20) !important;
   --dsw-alias-border-l4: rgba(126, 220, 255, 0.12) !important;
-  --dsw-alias-bg-base: rgba(3, 8, 15, 0.24) !important;
-  --dsw-alias-bg-layer-1: rgba(7, 17, 30, 0.48) !important;
-  --dsw-specific-sidebar-fill: rgba(4, 10, 19, 0.46) !important;
+  --dsw-alias-bg-base: rgba(3, 8, 15, 0.30) !important;
+  --dsw-alias-bg-layer-1: rgba(7, 17, 30, 0.52) !important;
+  --dsw-alias-bg-layer-2: rgba(9, 22, 38, 0.72) !important;
+  --dsw-alias-bg-layer-3: rgba(10, 22, 36, 0.68) !important;
+  --dsw-alias-bg-overlay: rgba(5, 12, 21, 0.94) !important;
+  --dsw-alias-brand-primary: #7d95ff !important;
+  --dsw-alias-state-error-primary: #ff6f8e !important;
+  --dsw-alias-state-idle-primary: #7f97b3 !important;
+  --dsw-alias-state-success-primary: #4fe3c1 !important;
+  --dsw-alias-state-warn-primary: #f2d94e !important;
+  --dsw-alias-interactive-bg-hover: rgba(126, 220, 255, 0.08) !important;
+  --dsw-alias-interactive-bg-active: rgba(126, 220, 255, 0.14) !important;
+  --dsw-alias-menu-surface-fill: rgba(8, 17, 29, 0.92) !important;
+  --dsw-alias-menu-icon: #9fc4e2 !important;
+  --dsw-alias-settings-card-fill: rgba(8, 18, 30, 0.72) !important;
+  --dsw-alias-settings-card-stroke: rgba(126, 220, 255, 0.16) !important;
+  --dsw-alias-button-tool-bar-fill: rgba(9, 20, 34, 0.70) !important;
+  --dsw-alias-button-elevated-fill: rgba(9, 20, 34, 0.72) !important;
+  --dsw-alias-button-floating-fill: rgba(9, 20, 34, 0.82) !important;
+  --dsw-specific-sidebar-fill: rgba(4, 10, 19, 0.50) !important;
+  --dsw-specific-sidebar-nav-item-active: rgba(30, 64, 110, 0.55) !important;
+  --dsw-specific-sidebar-nav-item-active-accent: #7edcff !important;
+  --dsw-specific-sidebar-nav-item-hover: rgba(126, 220, 255, 0.07) !important;
+  --dsw-specific-input-major: rgba(7, 18, 30, 0.70) !important;
+  --dsw-specific-bubble: rgba(22, 48, 80, 0.58) !important;
+  --dsw-specific-bubble-highlight: rgba(34, 68, 110, 0.66) !important;
+  --dsw-specific-menu: rgba(6, 14, 24, 0.94) !important;
   --dsw-font-family: "Bahnschrift", "Segoe UI", "Microsoft YaHei", system-ui, sans-serif !important;
+}
+
+/* Settings and model portals can use static neutral surfaces instead of alias
+   tokens. Keep these portals inside the Fairy HUD when the model page redraws. */
+html.fairy-on [role="dialog"],
+html.fairy-on [data-radix-dialog-content],
+html.fairy-on [data-slot="dialog-content"] {
+  background: var(--dsw-alias-bg-layer-2) !important;
+  color: var(--dsw-alias-label-primary) !important;
+  border-color: var(--dsw-alias-border-l2) !important;
+}
+html.fairy-on [role="dialog"] [class*="card"],
+html.fairy-on [role="dialog"] [class*="section"],
+html.fairy-on [role="dialog"] [class*="item"] {
+  background-color: var(--dsw-static-neutral-50) !important;
+  color: var(--dsw-alias-label-primary) !important;
+  border-color: var(--dsw-alias-border-l1) !important;
+}
+
+/* Reasoning row: while the skin is on, the whale tail becomes the FAIRY mark and
+   "深度求索中" reads "HDD计算中（用时 N 秒 …）". client.js hides the stock label
+   and mirrors it into its own node, so the running clock is preserved and the
+   original copy returns the moment the skin goes off. */
+html.fairy-on [data-chat-running] > span:last-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+html.fairy-on [data-chat-running] > span:last-child > span:first-child {
+  display: none !important;
+}
+html.fairy-on [data-chat-running] [data-fairy-orig] {
+  display: none !important;
+}
+html.fairy-on [data-chat-running] > span:last-child::before {
+  content: '';
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  background: url("/fairy/assets/mascot.svg") center / contain no-repeat;
+  filter: drop-shadow(0 0 5px rgba(126, 220, 255, 0.55));
+}
+/* Explicit colour: the stock shimmer paints transparent text behind a clipped
+   gradient, which is why the mirrored node must never inherit those classes. */
+html.fairy-on [data-chat-running] .fairy-think-label {
+  font-size: calc(var(--dsh-content-font-size, 14px) - 2px);
+  line-height: 1.3;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: var(--dsw-alias-label-deep-diving, #7f9caf) !important;
+  -webkit-text-fill-color: var(--dsw-alias-label-deep-diving, #7f9caf) !important;
+  animation: fairy-think-pulse 1.8s ease-in-out infinite;
+}
+@keyframes fairy-think-pulse {
+  0%, 100% { opacity: 0.72; }
+  50% { opacity: 1; }
+}
+
+/* Steering (插话) drafts live in their own queue dock, outside the composer
+   slot: [data-queue-dock] > [class*="preview"]. That preview paints itself with
+   --dsw-alias-label-primary-dimmed, which is what made it unreadable here. */
+html.fairy-on [data-queue-dock] {
+  color: var(--dsw-alias-label-primary) !important;
+}
+html.fairy-on [data-queue-dock] [class*="preview"],
+html.fairy-on [data-queue-dock] [class*="Preview"],
+html.fairy-on [data-queue-dock] [class*="count"],
+html.fairy-on [data-pending-steering] *,
+html.fairy-on [data-submission-echo] *,
+html.fairy-on [data-chat-flow-kind="steering"] * {
+  color: var(--dsw-alias-label-primary) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+html.fairy-on [data-pending-steering],
+html.fairy-on [data-submission-echo] {
+  opacity: 1 !important;
+}
+
+/* Composer / inline editors: keep typed text as bright as the transcript. */
+html.fairy-on textarea,
+html.fairy-on input,
+html.fairy-on [contenteditable="true"] {
+  color: var(--dsw-alias-label-primary) !important;
+  caret-color: #7edcff !important;
+}
+html.fairy-on textarea::placeholder,
+html.fairy-on input::placeholder,
+html.fairy-on [contenteditable="true"]::placeholder {
+  color: rgba(174, 208, 231, 0.78) !important;
+}
+
+/* Popovers (model / reasoning pickers) recomposite whenever the theme
+   repaints; solid surfaces without transitions or blur stay stable. */
+html.fairy-on [data-menu-material],
+html.fairy-on [role="menu"],
+html.fairy-on [role="listbox"],
+html.fairy-on [data-radix-popper-content-wrapper] > * {
+  background-color: #06101c !important;
+  color: var(--dsw-alias-label-primary) !important;
+  transition: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 /* ---------- emblem ---------- */
