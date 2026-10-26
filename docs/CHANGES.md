@@ -49,3 +49,15 @@
 
 - 仓库整理为可直接安装的插件包 + 一键脚本（`install.ps1` / `uninstall.ps1`）+ `AGENTS.md`（给 AI agent 的安装说明）。
 - 未入库：GPT-SoVITS 运行时、模型权重、生成的语音文件（体积/授权原因）。
+## 8. 主题稳定性与运行指示（补记）
+
+- **设置页变白**：DSH 的 settings 卡片用 `--dsw-static-neutral-*` / `--dsw-alias-settings-card-fill`，皮肤原先未覆盖这些 token；已把整套调色板搬进样式表并加 `!important`（作者重要声明优先于主题 presenter 的内联普通声明，且不会被它的 `removeProperty` 清掉）。
+- **切换模型时闪白**：presenter 重绘会逐个 `removeProperty` 内联 token，原先写在 `body` 内联上的值被一起删掉 → 一两帧没有 token。改为样式表声明后不再断档；守卫也改为同步重断言且**不重写全部 token**（否则展开的弹出面板会整体重算一次样式）。
+- **窗口外框白一帧**：`html[data-ds-theme-source]` 会被同步给 Electron `nativeTheme`。皮肤开启时强制为 `dark`，并给根元素兜底背景色。
+- **弹出层闪烁**：菜单/选择器改为实色表面并禁用 transition 与 backdrop-filter。
+- **思考中文案**：皮肤开启时把 `深度求索中，用时 N 秒 ···` 换成 `HDD计算中，用时 N 秒 ···`，前面的鲸鱼尾换成 FAIRY 徽记。做法是隐藏原标签、由插件镜像一个自己的节点（不修改聊天插件拥有的文本节点，关闭皮肤即还原）；镜像节点使用独立类名与实色，避免继承闪烁文本的透明字色。
+- **插话/排队文字过暗**：队列条目的正文用的是 `--dsw-alias-label-primary-dimmed`，已提升为 `#c4d8e9`；并对 `[data-queue-dock]` 的预览、以及 `data-pending-steering` / `data-submission-echo` 行强制正文亮色。
+
+## 9. 工作区
+
+- 插件实体与仓库合一：`D:\Desktop\dpsk-fairy`（profile 以 `link:` 指向其 `fairy-mode/`），不再在默认工作区保留副本。
