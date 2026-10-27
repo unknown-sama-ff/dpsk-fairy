@@ -223,7 +223,9 @@ html.fairy-hero-mounted [class*="previewBadge"] { display: none !important; }
 
 /* ---------- dock ---------- */
 .fairy-shell { position: fixed; inset: 0; z-index: 9400; pointer-events: none; }
-.fairy-dock { position: absolute; left: 18px; bottom: 82px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; pointer-events: none; }
+/* Anchored to the bottom-right gutter: the transcript and composer card are
+   centred on a max width, so this corner stays clear of both. */
+.fairy-dock { position: absolute; right: 22px; left: auto; bottom: 96px; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; pointer-events: none; }
 .fairy-dock-btn {
   pointer-events: auto; position: relative; display: grid; justify-items: center; gap: 2px;
   width: 84px; padding: 0; border: 0; background: transparent; color: #9fd8ff; cursor: pointer;
@@ -261,7 +263,7 @@ html.fairy-hero-mounted [class*="previewBadge"] { display: none !important; }
 .fairy-chip.is-on { color: #7edcff; border-color: rgba(126, 220, 255, 0.5); }
 .fairy-chip-quiet { color: rgba(169, 206, 232, 0.6); }
 
-.fairy-off { position: fixed; left: 16px; bottom: 82px; z-index: 9400; pointer-events: auto; }
+.fairy-off { position: fixed; right: 22px; left: auto; bottom: 96px; z-index: 9400; pointer-events: auto; }
 .fairy-revive {
   display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px 0 6px;
   border-radius: 999px; corner-shape: round; border: 1px solid rgba(126, 220, 255, 0.22);
@@ -401,4 +403,11 @@ html.fairy-hero-mounted [class*="previewBadge"] { display: none !important; }
   .fairy-emblem .fairy-band,
   .fairy-greet-bloom { animation: none; }
   .fairy-greet-stage { transition: none; }
+}
+
+/* Narrow windows: the composer card reaches the right gutter, so lift the dock
+   above it instead of letting the emblem sit on the send button. */
+@media (max-width: 1040px) {
+  .fairy-dock,
+  .fairy-off { bottom: 190px; }
 }
