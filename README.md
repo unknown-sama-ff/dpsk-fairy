@@ -4,6 +4,8 @@
 
 这是为 **DSH 桌面端（Electron）** 写的 Cordis 插件包 `@local/dsh-fairy-mode`，Host 半 + Client 半都在本仓库里。
 
+> 欢迎直接提交 Pull Request —— 不需要写权限，Fork 后改自己的分支即可，流程与约定见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+
 ![皮肤总览](fairy-mode/preview/live-skin.png)
 
 ## 一键安装
