@@ -1,4 +1,4 @@
-# FAIRY Ⅲ · DeepSeek Harness HDD 皮肤
+# FAIRY · DeepSeek Harness HDD 皮肤
 
 把 DeepSeek Harness 桌面端改成《绝区零》HDD 系统的样子：开机动画、Fairy 徽记、暗色 HUD、语音问候与朗读、输入框下方的「剩余电量」。
 
@@ -103,6 +103,20 @@ fairy-mode/                 # 插件包（可直接链进 DSH profile）
 - torchaudio 2.9 的 `torchaudio.load` 依赖 torchcodec → 改为 soundfile 读取参考音频；
 - `jieba_fast` 无 cp311 wheel → 用纯 Python `jieba` 兜底；
 - GPT-SoVITS 在 Windows 下按 GBK 写文本，emoji 会崩 → 送本地引擎前过滤 + `PYTHONUTF8=1`。
+
+## 一起改
+
+想让别人也能改这个皮肤，有三种方式，按需要选：
+
+| 方式 | 适用 | 怎么做 |
+|---|---|---|
+| **Fork + PR**（推荐） | 任何人、不打算给写权限 | 对方 Fork 后改自己分支，提 Pull Request；你审完合并 |
+| **Collaborator** | 少数信得过的朋友，直接有写权限 | 仓库 **Settings → Collaborators → Add people**，输入对方 GitHub 用户名，选 `Write` |
+| **组织 + 团队** | 人多、想统一管理 | 把仓库转进一个 Organization，给对方发组织邀请；组织设置里的 **Base permissions** 设为 `Write` 后，所有成员对仓库都有写权限 |
+
+建议同时打开 **Settings → Branches → Add branch protection rule**（保护 `main`）：要求通过 PR 合并、禁止 force push，避免多人直接推坏主干。
+
+具体流程与约定见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ## 许可与素材
 
