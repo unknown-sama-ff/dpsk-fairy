@@ -1,0 +1,42 @@
+name: 功能建议
+description: 想要的新效果、新交互或新的界面细节
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: 想要什么
+      description: 一句话说清目标，不必先想实现
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: 为什么
+      description: 它解决了什么问题，或参考了哪个作品 / 截图
+    validations:
+      required: false
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: 大致落在哪块
+      options:
+        - 主题与配色
+        - 徽记 / 气泡 / 交互
+        - 开屏与问候
+        - 输入框与对话流
+        - 语音
+        - 文档与安装
+        - 不确定
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: willing
+    attributes:
+      label: 你愿意自己提 PR 吗
+      options:
+        - label: 愿意，我可以按 CONTRIBUTING.md 提 PR
+          required: false
