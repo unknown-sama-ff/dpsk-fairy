@@ -303,6 +303,23 @@ async function ensureGptServer(tts, ctx) {
   return ready
 }
 
+/** Reading rules for Latin text, applied before either engine:
+    1. a run of the same letter keeps one flat pitch — runs of three or more are
+       separated so the model emits equal, unstressed units instead of stressing
+       or lengthening them (two-letter doubles inside normal words such as
+       "coffee" are left alone);
+    2. an all-caps acronym (2+ letters) is read as one fast burst — lowercased and
+       kept contiguous so it is voiced as a unit rather than spelled out slowly.
+    One pass keeps the rules from fighting: an acronym wins when both apply, so
+    "HDD" never turns into "hd d". */
+function normalizeSpeech(text) {
+  return text
+    /* Dotted spellings such as "H.D.D." collapse into the same fast burst. */
+    .replace(/\b([A-Z](?:\.[A-Z])+)\.?/g, (match, letters) => letters.replace(/\./g, '').toLowerCase())
+    .replace(/\b([A-Z]{2,})\b|([A-Za-z])\2{2,}/g, (match, acronym) =>
+      acronym !== undefined ? acronym.toLowerCase() : match.split('').join(' '))
+}
+
 /** GPT-SoVITS writes text through GBK on Windows and dies on emoji; drop
     everything outside the GBK-safe set before handing text to the local model. */
 function forLocalModel(text) {
@@ -367,10 +384,11 @@ async function tts(req, res, url, config, ctx) {
   const text = (url.searchParams.get('text') ?? '').trim()
   if (text === '') return sendJson(res, 400, { error: 'empty text' })
   const clipped = text.slice(0, 600)
+  const spoken = normalizeSpeech(clipped)
   const voice = url.searchParams.get('voice') || config.voiceName
   const rate = url.searchParams.get('rate') || config.voiceRate
   const mode = config.tts.engine
-  const key = createHash('sha1').update(mode + '|' + voice + '|' + rate + '|' + clipped).digest('hex')
+  const key = createHash('sha1').update(mode + '|' + voice + '|' + rate + '|' + spoken).digest('hex')
   const wavFile = join(CACHE_DIR, key + '.wav')
   const mp3File = join(CACHE_DIR, key + '.mp3')
 
@@ -378,7 +396,7 @@ async function tts(req, res, url, config, ctx) {
     await mkdir(CACHE_DIR, { recursive: true })
     if (mode !== 'edge') {
       if (existsSync(wavFile)) return { file: wavFile, type: 'audio/wav' }
-      const localText = forLocalModel(clipped)
+      const localText = forLocalModel(spoken)
       if (localText !== '') {
         try {
           const bytes = await gptSovitsAttempt(localText, config, ctx)
@@ -393,7 +411,7 @@ async function tts(req, res, url, config, ctx) {
     const python = findPython(config)
     if (python === undefined) throw new Error('no python interpreter found for edge-tts')
     const temp = mp3File + '.' + process.pid + '.part'
-    await synthesize(python, voice, rate, clipped, temp)
+    await synthesize(python, voice, rate, spoken, temp)
     await writeFile(mp3File, await readFile(temp))
     try { await unlink(temp) } catch { /* best effort */ }
     return { file: mp3File, type: 'audio/mpeg' }
