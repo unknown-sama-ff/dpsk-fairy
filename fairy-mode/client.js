@@ -802,11 +802,18 @@ window.__ModuleLoader__.load({
           const rect = stage.getBoundingClientRect()
           const centerX = rect.left + rect.width / 2
           const centerY = rect.top + rect.height / 2
-          const targetX = 18 + 42
-          const targetY = window.innerHeight - 18 - 52
+          /* The emblem has to land on the dock, which parks in the bottom-right
+             corner. The dock is not mounted during the greeting, so its geometry
+             is mirrored here from .fairy-dock: right 22 / bottom 30 (124 on
+             narrow windows), hint 12 + gap 8 + label 11 + gap 2, emblem 84. */
+          const narrow = window.matchMedia('(max-width: 1040px)').matches
+          const dockBottom = narrow ? 124 : 30
+          const emblemSize = 84
+          const targetX = window.innerWidth - 22 - emblemSize / 2
+          const targetY = window.innerHeight - dockBottom - 12 - 8 - 11 - 2 - emblemSize / 2
           dx = targetX - centerX
           dy = targetY - centerY
-          scale = 84 / Math.max(1, rect.width)
+          scale = emblemSize / Math.max(1, rect.width)
         }
         stage?.style.setProperty('--fairy-launch-x', dx + 'px')
         stage?.style.setProperty('--fairy-launch-y', dy + 'px')
