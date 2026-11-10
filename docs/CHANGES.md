@@ -61,3 +61,11 @@
 ## 9. 工作区
 
 - 插件实体与仓库合一：`D:\Desktop\dpsk-fairy`（profile 以 `link:` 指向其 `fairy-mode/`），不再在默认工作区保留副本。
+
+## 10. 输入框：输入法上屏吞掉选区后面一段（2026-11-10）
+
+- **现象**：粘贴文本 → 用鼠标选掉开头一段 → 输入法打一个字上屏，被吞掉的不只是选区，选区后面**等长的一段**也一起没了。录屏里 `GITHUB：https://…` 直接变成 `看//github.com/…`，`https:` 凭空消失。
+- **定位**（用插件里的只读记录器采集的事件序列）：`compositionstart` 时 DOM 选区仍是那 7 个字符的旧选区，编辑器在同一个 dispatch 里用脚本把它删了（**没有任何 beforeinput/input 事件**），而 Chromium 的组合范围仍停在旧的 7 字符宽度上，上屏时又按这个宽度替换了一遍新文本 —— 同一段选区被删了两次。
+- **修复**：`compositionstart` 捕获阶段，发现 `[data-composer-input]` 上有非折叠选区时，只把 **DOM 选区收成光标**（不动文本）。编辑器照原逻辑删字，浏览器手里的组合范围不再跨到新文本上。实测同样操作得到 `是https://github.com/…`，URL 完整；整份日志里这层干预只在该场景触发过一次。
+- **开关**：`localStorage['fairy.composerGuard'] = '0'` 关掉守卫；`['fairy.composerLog'] = '1'` 打开只读记录器（Ctrl+Alt+Shift+D 把最近 400 条事件拷进剪贴板）。
+- 这是 DSH 本体（`@deepseek-ai/dsh-client-ui-conversation@0.2.2-rc.1` 里的 Lexical 草稿编辑器）的问题，皮肤从不写输入框文本；上游修好后这层守卫自然空转，可以删。

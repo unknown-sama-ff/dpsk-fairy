@@ -850,6 +850,202 @@ window.__ModuleLoader__.load({
 
 
     /* ------------------------------------------------------------------ */
+    /* composer diagnostics (temporary)                                    */
+    /* ------------------------------------------------------------------ */
+
+    /* Set by installComposerDiagnostics; lets the guard leave a breadcrumb in
+       the same ring without depending on it being armed. */
+    let diagNote = null
+
+    /* Read-only recorder for the composer contenteditable. Off by default: turn
+       it on with localStorage['fairy.composerLog'] = '1' when a draft problem
+       needs evidence, and it never prevents, stops or re-dispatches an event —
+       every listener is capture + passive, so the draft behaves exactly as it
+       would without this block. `fairyComposerDump()` prints the last 400
+       events and copies them; Ctrl+Alt+Shift+D does the same without devtools. */
+    function installComposerDiagnostics() {
+      let enabled = false
+      try { enabled = window.localStorage.getItem('fairy.composerLog') === '1' } catch { /* private mode */ }
+      if (!enabled || window.__fairyComposerDiag === true) return () => {}
+
+      window.__fairyComposerDiag = true
+      const boot = Date.now()
+      const ring = []
+      const MAX = 400
+      window.__fairyComposerLog = ring
+
+      const rootOf = (target) => {
+        const el = target instanceof Element ? target : target?.parentElement ?? null
+        return el === null ? null : el.closest('[data-composer-input]')
+      }
+      const clip = (value) => typeof value === 'string' && value.length > 80 ? value.slice(0, 80) + '…' : value
+      const textOf = (root) => root === null ? '' : root.textContent || ''
+      const caretOf = (root) => {
+        const selection = window.getSelection()
+        if (root === null || selection === null || selection.rangeCount === 0) return ''
+        if (!root.contains(selection.anchorNode)) return 'outside'
+        const anchor = selection.anchorNode
+        const head = (anchor !== null && anchor.nodeType === 3 ? 'T' : 'E') + selection.anchorOffset
+        if (selection.isCollapsed) return head
+        const focus = selection.focusNode
+        return head + '>' + (focus !== null && focus.nodeType === 3 ? 'T' : 'E') + selection.focusOffset
+      }
+      const push = (entry) => {
+        ring.push(entry)
+        if (ring.length > MAX) ring.splice(0, ring.length - MAX)
+      }
+      /* One sample per dispatch, plus one after the paint: the second sample is
+         what catches a change no input event explained. */
+      const record = (event, extra) => {
+        const root = rootOf(event.target)
+        if (root === null) return
+        const text = textOf(root)
+        const active = root.ownerDocument.activeElement
+        const entry = {
+          t: Date.now() - boot,
+          ev: event.type,
+          ...extra,
+          comp: root.hasAttribute('data-composer-composing') ? 1 : 0,
+          focus: root.contains(active) ? 'in' : String(active?.tagName ?? 'none').toLowerCase(),
+          caret: caretOf(root),
+          text,
+        }
+        push(entry)
+        window.requestAnimationFrame(() => {
+          if (root.isConnected !== true) return
+          const after = textOf(root)
+          if (after === text) return
+          const last = ring[ring.length - 1]
+          /* Several dispatches light up the same paint; record it once. */
+          if (last !== undefined && last.ev === 'paint' && last.text === after && last.caret === entry.caret) return
+          push({ t: Date.now() - boot, ev: 'paint', focus: entry.focus, caret: caretOf(root), text: after })
+        })
+      }
+      diagNote = (fields) => push({ t: Date.now() - boot, ev: 'guard', ...fields })
+
+      const handlers = {
+        beforeinput: (event) => record(event, {
+          inputType: event.inputType,
+          data: clip(event.data),
+          composing: event.isComposing ? 1 : 0,
+        }),
+        input: (event) => record(event, {
+          inputType: event.inputType,
+          data: clip(event.data),
+          composing: event.isComposing ? 1 : 0,
+        }),
+        compositionstart: (event) => record(event, { data: clip(event.data) }),
+        compositionupdate: (event) => record(event, { data: clip(event.data) }),
+        compositionend: (event) => record(event, { data: clip(event.data) }),
+        paste: (event) => {
+          const text = event.clipboardData === null ? '' : event.clipboardData.getData('text/plain')
+          record(event, { data: clip(text), len: text.length })
+        },
+        keydown: (event) => {
+          if (event.key.length !== 1 && event.isComposing !== true && event.keyCode !== 229
+            && event.ctrlKey !== true && event.metaKey !== true) return
+          record(event, {
+            key: event.key,
+            code: event.keyCode,
+            ctrl: event.ctrlKey ? 1 : 0,
+            meta: event.metaKey ? 1 : 0,
+            alt: event.altKey ? 1 : 0,
+          })
+        },
+      }
+      const listener = (event) => {
+        const handler = handlers[event.type]
+        if (handler !== undefined) handler(event)
+      }
+      const types = Object.keys(handlers)
+      for (const type of types) document.addEventListener(type, listener, { capture: true, passive: true })
+
+      window.fairyComposerDump = () => {
+        const lines = ring.map((entry) => {
+          const bits = [String(entry.t).padStart(6), entry.ev]
+          if (entry.inputType !== undefined) bits.push(entry.inputType)
+          if (entry.key !== undefined) bits.push('key=' + entry.key + '/' + entry.code)
+          if (entry.ctrl === 1) bits.push('ctrl')
+          if (entry.meta === 1) bits.push('meta')
+          if (entry.alt === 1) bits.push('alt')
+          if (entry.data !== undefined) bits.push('data=' + JSON.stringify(entry.data))
+          if (entry.len !== undefined) bits.push('len=' + entry.len)
+          if (entry.composing === 1) bits.push('isComposing')
+          if (entry.comp === 1) bits.push('comp-attr')
+          if (entry.caret !== '') bits.push('@' + entry.caret)
+          return bits.join(' ') + '  ' + JSON.stringify(entry.text)
+        })
+        const out = lines.join('\n')
+        console.log('[fairy] composer log\n' + out)
+        /* Clipboard access can be refused without focus; the console copy is enough. */
+        try { navigator.clipboard?.writeText?.(out)?.catch?.(() => {}) } catch { /* ignore */ }
+        return out
+      }
+      window.fairyComposerClear = () => {
+        ring.length = 0
+        return 'cleared'
+      }
+
+      /* The dump has to reach a human without devtools: Ctrl+Alt+Shift+D copies
+         it to the clipboard. That chord is the single thing this block ever
+         intercepts, and only while the trace is armed. */
+      const dumpShortcut = (event) => {
+        if (event.ctrlKey !== true || event.altKey !== true || event.shiftKey !== true) return
+        if (String(event.key).toLowerCase() !== 'd') return
+        event.preventDefault()
+        window.fairyComposerDump()
+      }
+      window.addEventListener('keydown', dumpShortcut, true)
+      console.info('[fairy] composer trace armed — Ctrl+Alt+Shift+D copies the log')
+
+      return () => {
+        for (const type of types) document.removeEventListener(type, listener, { capture: true })
+        window.removeEventListener('keydown', dumpShortcut, true)
+        window.__fairyComposerDiag = false
+        diagNote = null
+        delete window.fairyComposerDump
+        delete window.fairyComposerClear
+      }
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* composer composition guard                                          */
+    /* ------------------------------------------------------------------ */
+
+    /* A non-collapsed selection at IME composition start is deleted twice: the
+       editor removes it in the compositionstart dispatch, and Chromium keeps
+       the composition range at the width it saw at that moment, so the commit
+       replaces the same number of characters again. Collapsing the DOM
+       selection first leaves the browser a caret-width range, while the text
+       itself is still removed by the editor exactly as before. */
+    function installComposerCompositionGuard() {
+      let enabled = true
+      try { enabled = window.localStorage.getItem('fairy.composerGuard') !== '0' } catch { /* private mode */ }
+      if (!enabled) return () => {}
+      if (window.__fairyComposerGuard === true) return () => {}
+      window.__fairyComposerGuard = true
+
+      const collapse = (event) => {
+        const el = event.target instanceof Element ? event.target : null
+        const root = el === null ? null : el.closest('[data-composer-input]')
+        if (root === null) return
+        const selection = window.getSelection()
+        if (selection === null || selection.rangeCount === 0 || selection.isCollapsed) return
+        if (!root.contains(selection.anchorNode)) return
+        const range = selection.getRangeAt(0)
+        const width = range.toString().length
+        selection.collapse(range.startContainer, range.startOffset)
+        diagNote?.({ caret: 'collapsed', data: 'width=' + width, text: root.textContent || '' })
+      }
+      document.addEventListener('compositionstart', collapse, true)
+
+      return () => {
+        document.removeEventListener('compositionstart', collapse, true)
+        window.__fairyComposerGuard = false
+      }
+    }
+
+    /* ------------------------------------------------------------------ */
     /* plugin                                                              */
     /* ------------------------------------------------------------------ */
 
@@ -911,6 +1107,11 @@ window.__ModuleLoader__.load({
             themeApi = null
           }
         }, 'fairy-mode: style + skin')
+
+        /* Temporary: record composer input events so a swallowed edit leaves a
+           reproducible trace. Remove together with installComposerDiagnostics. */
+        ctx.effect(() => installComposerDiagnostics(), 'fairy-mode: composer diagnostics')
+        ctx.effect(() => installComposerCompositionGuard(), 'fairy-mode: composer composition guard')
 
         ctx.slots.inject('shell.overlay', () => ctx.slots.register({
           name: 'shell.overlay',
