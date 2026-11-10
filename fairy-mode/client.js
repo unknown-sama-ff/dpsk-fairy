@@ -117,7 +117,13 @@ window.__ModuleLoader__.load({
         const snapshot = themeApi.getTheme?.()
         themePrevious = snapshot?.preference && snapshot.preference !== 'fairy' ? snapshot.preference : 'dark'
         themeDispose = themeApi.register({ id: 'fairy', colorScheme: 'dark', tokens: THEME_TOKENS })
-        themeApi.setTheme('fairy')
+        /* Persist a built-in scheme rather than the custom id. The custom theme
+           only exists once this plugin has loaded, so a stored "fairy" cannot be
+           resolved during boot and the shell falls back to light for the first
+           frames - visible as a white flash around the window. Storing "dark"
+           paints dark from the very first frame; the Fairy palette still comes
+           from the stylesheet and the inline tokens below. */
+        themeApi.setTheme('dark')
       } catch (error) {
         console.warn('[fairy-mode] theme registration failed', error)
         themeDispose = null
@@ -867,15 +873,10 @@ window.__ModuleLoader__.load({
           const guard = () => {
             if (!skinOn() || skinApplied()) return
             try {
-              const snapshot = themeApi?.getTheme?.()
-              /* A settings reload can drop the registered theme; put it back
-                 before re-asserting the palette. */
-              if (snapshot && snapshot.preference !== 'fairy') {
-                themeDispose = null
-                enableTheme()
-              } else {
-                themeApi?.setTheme('fairy')
-              }
+              /* A settings reload can drop the registered theme; put it back.
+                 The durable preference is the built-in "dark" now, so its value
+                 says nothing about whether our theme survived. */
+              if (themeDispose === null) enableTheme()
             } catch { /* theme may be disposing */ }
             reassertSkin()
           }
